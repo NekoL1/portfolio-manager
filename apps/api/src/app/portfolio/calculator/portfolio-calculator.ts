@@ -727,6 +727,8 @@ export abstract class PortfolioCalculator {
     let netPerformanceWithCurrencyEffectAtStartDate: number;
     let valueAtStartDate: number;
     let valueWithCurrencyEffectAtStartDate: number;
+    let rangeStartValue: number;
+    let rangeStartValueWithCurrencyEffect: number;
 
     for (const historicalDataItem of historicalData) {
       const date = resetHours(parseDate(historicalDataItem.date));
@@ -740,6 +742,15 @@ export abstract class PortfolioCalculator {
 
           valueAtStartDate = historicalDataItem.value;
           valueWithCurrencyEffectAtStartDate =
+            historicalDataItem.valueWithCurrencyEffect;
+        }
+
+        if (
+          !isNumber(rangeStartValue) &&
+          historicalDataItem.valueWithCurrencyEffect > 0
+        ) {
+          rangeStartValue = historicalDataItem.value;
+          rangeStartValueWithCurrencyEffect =
             historicalDataItem.valueWithCurrencyEffect;
         }
 
@@ -757,14 +768,17 @@ export abstract class PortfolioCalculator {
           netPerformanceWithCurrencyEffect:
             netPerformanceWithCurrencyEffectSinceStartDate,
           netPerformanceInPercentage:
-            valueAtStartDate === 0
+            (rangeStartValue ?? valueAtStartDate) === 0
               ? 0
-              : netPerformanceSinceStartDate / valueAtStartDate,
+              : netPerformanceSinceStartDate /
+                (rangeStartValue ?? valueAtStartDate),
           netPerformanceInPercentageWithCurrencyEffect:
-            valueWithCurrencyEffectAtStartDate === 0
+            (rangeStartValueWithCurrencyEffect ??
+              valueWithCurrencyEffectAtStartDate) === 0
               ? 0
               : netPerformanceWithCurrencyEffectSinceStartDate /
-                valueWithCurrencyEffectAtStartDate
+                (rangeStartValueWithCurrencyEffect ??
+                  valueWithCurrencyEffectAtStartDate)
           // TODO: Add net worth
           // netWorth: totalCurrentValueWithCurrencyEffect
           //   .plus(totalAccountBalanceWithCurrencyEffect)
