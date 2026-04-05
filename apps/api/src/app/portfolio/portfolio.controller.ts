@@ -36,6 +36,7 @@ import type {
   GroupBy,
   RequestWithUser
 } from '@ghostfolio/common/types';
+import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 
 import {
   Body,
@@ -509,6 +510,8 @@ export class PortfolioController {
     @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string,
     @Query('accounts') filterByAccounts?: string,
     @Query('assetClasses') filterByAssetClasses?: string,
+    @Query('calculationType')
+    calculationType?: PerformanceCalculationType,
     @Query('dataSource') filterByDataSource?: string,
     @Query('range') dateRange: DateRange = 'max',
     @Query('symbol') filterBySymbol?: string,
@@ -526,6 +529,7 @@ export class PortfolioController {
     });
 
     const performanceInformation = await this.portfolioService.getPerformance({
+      calculationType,
       dateRange,
       filters,
       impersonationId,

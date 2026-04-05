@@ -57,7 +57,9 @@ import {
   startOfYear,
   subDays
 } from 'date-fns';
-import { isNumber, sortBy, uniqBy } from 'lodash';
+import { isNumber, sortBy, sum, uniqBy } from 'lodash';
+
+import { DatedCashFlow } from './performance-calculation.helper';
 
 export abstract class PortfolioCalculator {
   protected static readonly ENABLE_LOGGING = false;
@@ -725,6 +727,9 @@ export abstract class PortfolioCalculator {
 
     let netPerformanceAtStartDate: number;
     let netPerformanceWithCurrencyEffectAtStartDate: number;
+    const totalInvestmentValues: number[] = [];
+    const totalInvestmentValuesWithCurrencyEffect: number[] = [];
+
     for (const historicalDataItem of historicalData) {
       const date = resetHours(parseDate(historicalDataItem.date));
 
@@ -743,6 +748,27 @@ export abstract class PortfolioCalculator {
           historicalDataItem.netPerformanceWithCurrencyEffect -
           netPerformanceWithCurrencyEffectAtStartDate;
 
+        if (historicalDataItem.totalInvestment > 0) {
+          totalInvestmentValues.push(historicalDataItem.totalInvestment);
+        }
+
+        if (historicalDataItem.totalInvestmentValueWithCurrencyEffect > 0) {
+          totalInvestmentValuesWithCurrencyEffect.push(
+            historicalDataItem.totalInvestmentValueWithCurrencyEffect
+          );
+        }
+
+        const averageInvestmentValue =
+          totalInvestmentValues.length > 0
+            ? sum(totalInvestmentValues) / totalInvestmentValues.length
+            : 0;
+
+        const averageInvestmentValueWithCurrencyEffect =
+          totalInvestmentValuesWithCurrencyEffect.length > 0
+            ? sum(totalInvestmentValuesWithCurrencyEffect) /
+              totalInvestmentValuesWithCurrencyEffect.length
+            : 0;
+
         chart.push({
           ...historicalDataItem,
           netPerformance:
@@ -750,15 +776,14 @@ export abstract class PortfolioCalculator {
           netPerformanceWithCurrencyEffect:
             netPerformanceWithCurrencyEffectSinceStartDate,
           netPerformanceInPercentage:
-            historicalDataItem.totalInvestment === 0
+            averageInvestmentValue === 0
               ? 0
-              : netPerformanceSinceStartDate /
-                historicalDataItem.totalInvestment,
+              : netPerformanceSinceStartDate / averageInvestmentValue,
           netPerformanceInPercentageWithCurrencyEffect:
-            historicalDataItem.totalInvestmentValueWithCurrencyEffect === 0
+            averageInvestmentValueWithCurrencyEffect === 0
               ? 0
               : netPerformanceWithCurrencyEffectSinceStartDate /
-                historicalDataItem.totalInvestmentValueWithCurrencyEffect
+                averageInvestmentValueWithCurrencyEffect
           // TODO: Add net worth
           // netWorth: totalCurrentValueWithCurrencyEffect
           //   .plus(totalAccountBalanceWithCurrencyEffect)
@@ -769,6 +794,114 @@ export abstract class PortfolioCalculator {
     }
 
     return { chart };
+  }
+
+  protected async getHistoricalDataInRange({
+    end,
+    start
+  }: {
+    end: Date;
+    start: Date;
+  }) {
+    await this.snapshotPromise;
+
+    return this.snapshot.historicalData.filter(({ date }) => {
+      const historicalDate = resetHours(parseDate(date));
+
+      return !isBefore(historicalDate, start) && !isAfter(historicalDate, end);
+    });
+  }
+
+  protected async getPortfolioCashFlowsByDate({
+    end,
+    start
+  }: {
+    end: Date;
+    start: Date;
+  }): Promise<Record<string, number>> {
+    const currencies = Array.from(
+      new Set(
+        this.activities
+          .map(({ SymbolProfile }) => {
+            return SymbolProfile?.currency;
+          })
+          .filter(Boolean)
+      )
+    );
+
+    const exchangeRatesByCurrency =
+      await this.exchangeRateDataService.getExchangeRatesByCurrency({
+        currencies,
+        endDate: end,
+        startDate: start,
+        targetCurrency: this.currency
+      });
+
+    const cashFlowsByDate: Record<string, number> = {};
+
+    for (const activity of this.activities) {
+      const activityDate = resetHours(parseDate(activity.date));
+
+      if (isBefore(activityDate, start) || isAfter(activityDate, end)) {
+        continue;
+      }
+
+      const activityCurrency = activity.SymbolProfile?.currency;
+      const exchangeRate =
+        exchangeRatesByCurrency[`${activityCurrency}${this.currency}`]?.[
+          activity.date
+        ] ?? 1;
+      const grossAmount = activity.quantity.mul(activity.unitPrice).toNumber();
+      const grossAmountInBaseCurrency = grossAmount * exchangeRate;
+      const feeInBaseCurrency = activity.feeInBaseCurrency?.toNumber() ?? 0;
+
+      let cashFlow = 0;
+
+      switch (activity.type) {
+        case 'BUY':
+          cashFlow = grossAmountInBaseCurrency + feeInBaseCurrency;
+          break;
+        case 'SELL':
+          cashFlow = -(grossAmountInBaseCurrency - feeInBaseCurrency);
+          break;
+        case 'DIVIDEND':
+        case 'INTEREST':
+          cashFlow = -grossAmountInBaseCurrency;
+          break;
+        default:
+          break;
+      }
+
+      cashFlowsByDate[activity.date] =
+        (cashFlowsByDate[activity.date] ?? 0) + cashFlow;
+    }
+
+    return cashFlowsByDate;
+  }
+
+  protected getDatedCashFlows({
+    cashFlowsByDate,
+    endDateString,
+    startDateString
+  }: {
+    cashFlowsByDate: Record<string, number>;
+    endDateString: string;
+    startDateString: string;
+  }): DatedCashFlow[] {
+    return Object.entries(cashFlowsByDate)
+      .filter(([date, amount]) => {
+        return (
+          Math.abs(amount) > Number.EPSILON &&
+          date > startDateString &&
+          date <= endDateString
+        );
+      })
+      .sort(([leftDate], [rightDate]) => {
+        return leftDate.localeCompare(rightDate);
+      })
+      .map(([date, amount]) => {
+        return { amount, date };
+      });
   }
 
   public async getSnapshot() {
@@ -1090,15 +1223,18 @@ export abstract class PortfolioCalculator {
 
     let cachedPortfolioSnapshot: PortfolioSnapshot;
     let isCachedPortfolioSnapshotExpired = false;
-    const jobId = this.userId;
+    const portfolioSnapshotKey = this.redisCacheService.getPortfolioSnapshotKey(
+      {
+        calculationType: this.getPerformanceCalculationType(),
+        filters: this.filters,
+        userId: this.userId
+      }
+    );
+    const jobId = portfolioSnapshotKey;
 
     try {
-      const cachedPortfolioSnapshotValue = await this.redisCacheService.get(
-        this.redisCacheService.getPortfolioSnapshotKey({
-          filters: this.filters,
-          userId: this.userId
-        })
-      );
+      const cachedPortfolioSnapshotValue =
+        await this.redisCacheService.get(portfolioSnapshotKey);
 
       const { expiration, portfolioSnapshot }: PortfolioSnapshotValue =
         JSON.parse(cachedPortfolioSnapshotValue);

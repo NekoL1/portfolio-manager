@@ -1,6 +1,7 @@
 import { ConfigurationService } from '@ghostfolio/api/services/configuration/configuration.service';
 import { getAssetProfileIdentifier } from '@ghostfolio/common/helper';
 import { AssetProfileIdentifier, Filter } from '@ghostfolio/common/interfaces';
+import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -51,13 +52,19 @@ export class RedisCacheService {
   }
 
   public getPortfolioSnapshotKey({
+    calculationType,
     filters,
     userId
   }: {
+    calculationType?: PerformanceCalculationType;
     filters?: Filter[];
     userId: string;
   }) {
     let portfolioSnapshotKey = `portfolio-snapshot-${userId}`;
+
+    if (calculationType) {
+      portfolioSnapshotKey = `${portfolioSnapshotKey}-${calculationType}`;
+    }
 
     if (filters?.length > 0) {
       const filtersHash = createHash('sha256')

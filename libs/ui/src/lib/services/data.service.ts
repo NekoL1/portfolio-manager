@@ -62,6 +62,7 @@ import type {
   DateRange,
   GroupBy
 } from '@ghostfolio/common/types';
+import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 import { translate } from '@ghostfolio/ui/i18n';
 
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -638,11 +639,13 @@ export class DataService {
   }
 
   public fetchPortfolioPerformance({
+    calculationType,
     filters,
     range,
     withExcludedAccounts = false,
     withItems = false
   }: {
+    calculationType?: PerformanceCalculationType;
     filters?: Filter[];
     range: DateRange;
     withExcludedAccounts?: boolean;
@@ -650,6 +653,10 @@ export class DataService {
   }): Observable<PortfolioPerformanceResponse> {
     let params = this.buildFiltersAsQueryParams({ filters });
     params = params.append('range', range);
+
+    if (calculationType) {
+      params = params.append('calculationType', calculationType);
+    }
 
     if (withExcludedAccounts) {
       params = params.append('withExcludedAccounts', withExcludedAccounts);

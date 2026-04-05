@@ -989,11 +989,13 @@ export class PortfolioService {
   }
 
   public async getPerformance({
+    calculationType,
     dateRange = 'max',
     filters,
     impersonationId,
     userId
   }: {
+    calculationType?: PerformanceCalculationType;
     dateRange?: DateRange;
     filters?: Filter[];
     impersonationId: string;
@@ -1040,7 +1042,8 @@ export class PortfolioService {
       activities,
       filters,
       userId,
-      calculationType: this.getUserPerformanceCalculationType(user),
+      calculationType:
+        calculationType ?? this.getUserPerformanceCalculationType(user),
       currency: userCurrency
     });
 

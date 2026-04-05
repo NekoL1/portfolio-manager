@@ -5,6 +5,7 @@ import type {
   HoldingsViewMode,
   ViewMode
 } from '@ghostfolio/common/types';
+import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 import { IsCurrencyCode } from '@ghostfolio/common/validators/is-currency-code';
 
 import {
@@ -97,6 +98,10 @@ export class UpdateUserSettingDto {
   @IsString()
   @IsOptional()
   locale?: string;
+
+  @IsIn(Object.values(PerformanceCalculationType))
+  @IsOptional()
+  performanceCalculationType?: PerformanceCalculationType;
 
   @IsNumber()
   @IsOptional()

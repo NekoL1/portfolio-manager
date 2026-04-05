@@ -11,8 +11,10 @@ import {
 } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import { internalRoutes } from '@ghostfolio/common/routes/routes';
+import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 import { GfLineChartComponent } from '@ghostfolio/ui/line-chart';
 import { DataService } from '@ghostfolio/ui/services';
+import { GfValueComponent } from '@ghostfolio/ui/value';
 
 import { CommonModule } from '@angular/common';
 import {
@@ -26,12 +28,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterModule } from '@angular/router';
 import { DeviceDetectorService } from 'ngx-device-detector';
+import { forkJoin } from 'rxjs';
 
 @Component({
   imports: [
     CommonModule,
     GfLineChartComponent,
     GfPortfolioPerformanceComponent,
+    GfValueComponent,
     MatButtonModule,
     RouterModule
   ],
@@ -41,6 +45,7 @@ import { DeviceDetectorService } from 'ngx-device-detector';
   templateUrl: './home-overview.html'
 })
 export class GfHomeOverviewComponent implements OnInit {
+  public contributionDataItems: LineChartItem[];
   public deviceType: string;
   public errors: AssetProfileIdentifier[];
   public hasError: boolean;
@@ -50,9 +55,11 @@ export class GfHomeOverviewComponent implements OnInit {
   public isAllTimeHigh: boolean;
   public isAllTimeLow: boolean;
   public isLoadingPerformance = true;
-  public performance: PortfolioPerformance;
-  public performanceLabel = $localize`Performance`;
+  public mwrPerformance: PortfolioPerformance;
+  public performanceLabel = $localize`Portfolio Value`;
   public precision = 2;
+  public contributionLabel = $localize`Contributions`;
+  public twrPerformance: PortfolioPerformance;
   public routerLinkAccounts = internalRoutes.accounts.routerLink;
   public routerLinkPortfolio = internalRoutes.portfolio.routerLink;
   public routerLinkPortfolioActivities =
@@ -112,30 +119,49 @@ export class GfHomeOverviewComponent implements OnInit {
   }
 
   private update() {
+    this.contributionDataItems = null;
     this.historicalDataItems = null;
     this.isLoadingPerformance = true;
+    this.mwrPerformance = undefined;
+    this.twrPerformance = undefined;
 
-    this.dataService
-      .fetchPortfolioPerformance({
+    forkJoin({
+      mwr: this.dataService.fetchPortfolioPerformance({
+        calculationType: PerformanceCalculationType.MWR,
+        range: this.user?.settings?.dateRange
+      }),
+      twr: this.dataService.fetchPortfolioPerformance({
+        calculationType: PerformanceCalculationType.TWR,
         range: this.user?.settings?.dateRange
       })
+    })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ chart, errors, performance }) => {
-        this.errors = errors;
-        this.performance = performance;
+      .subscribe(({ mwr, twr }) => {
+        this.errors = this.mergeErrors([twr.errors, mwr.errors]);
+        this.mwrPerformance = mwr.performance;
+        this.twrPerformance = twr.performance;
 
-        this.historicalDataItems = chart.map(
-          ({ date, netPerformanceInPercentageWithCurrencyEffect }) => {
+        this.historicalDataItems = twr.chart.map(
+          ({ date, valueWithCurrencyEffect }) => {
             return {
               date,
-              value: netPerformanceInPercentageWithCurrencyEffect * 100
+              value: valueWithCurrencyEffect
+            };
+          }
+        );
+
+        this.contributionDataItems = twr.chart.map(
+          ({ date, totalInvestmentValueWithCurrencyEffect }) => {
+            return {
+              date,
+              value: totalInvestmentValueWithCurrencyEffect
             };
           }
         );
 
         if (
           this.deviceType === 'mobile' &&
-          this.performance.currentValueInBaseCurrency >=
+          this.twrPerformance.currentValueInBaseCurrency >=
             NUMERICAL_PRECISION_THRESHOLD_6_FIGURES
         ) {
           this.precision = 0;
@@ -147,5 +173,17 @@ export class GfHomeOverviewComponent implements OnInit {
       });
 
     this.changeDetectorRef.markForCheck();
+  }
+
+  private mergeErrors(errorsList: AssetProfileIdentifier[][] = []) {
+    const errorMap = new Map<string, AssetProfileIdentifier>();
+
+    for (const errors of errorsList) {
+      for (const error of errors ?? []) {
+        errorMap.set(`${error.dataSource}:${error.symbol}`, error);
+      }
+    }
+
+    return Array.from(errorMap.values());
   }
 }

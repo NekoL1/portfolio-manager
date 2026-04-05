@@ -64,42 +64,124 @@
       </div>
     </div>
   } @else {
-    <div class="row w-100">
-      <div class="col p-0">
-        <div class="chart-container mx-auto position-relative">
-          <gf-line-chart
-            class="position-absolute"
-            unit="%"
-            [colorScheme]="user?.settings?.colorScheme"
-            [hidden]="historicalDataItems?.length === 0"
-            [historicalDataItems]="historicalDataItems"
-            [isAnimated]="user?.settings?.dateRange === '1d' ? false : true"
-            [label]="performanceLabel"
-            [locale]="user?.settings?.locale"
-            [ngClass]="{ 'pr-3': deviceType === 'mobile' }"
-            [showGradient]="true"
-            [showLoader]="false"
-            [showXAxis]="false"
-            [showYAxis]="false"
-          />
-        </div>
+    <div class="overview-content row w-100">
+      <div class="col-12 p-0">
+        <section class="overview-panel chart-panel mx-auto position-relative">
+          <div
+            class="chart-header d-flex flex-column flex-lg-row justify-content-between"
+          >
+            <div class="headline">
+              <div class="eyebrow text-muted" i18n>
+                Portfolio Value vs Contributions
+              </div>
+              <div class="headline-value">
+                <gf-value
+                  size="large"
+                  [isCurrency]="true"
+                  [locale]="user?.settings?.locale"
+                  [precision]="precision"
+                  [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                  [value]="
+                    showDetails
+                      ? twrPerformance?.currentValueInBaseCurrency
+                      : twrPerformance?.netPerformancePercentageWithCurrencyEffect
+                  "
+                />
+              </div>
+            </div>
+            <div class="legend-block">
+              <div class="legend-item">
+                <div class="legend-label value-line" i18n>Portfolio value</div>
+                <gf-value
+                  [isCurrency]="true"
+                  [locale]="user?.settings?.locale"
+                  [precision]="precision"
+                  [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                  [value]="
+                    showDetails
+                      ? twrPerformance?.currentValueInBaseCurrency
+                      : undefined
+                  "
+                />
+              </div>
+              <div class="legend-item">
+                <div class="legend-label contribution-line" i18n>
+                  Contributions
+                </div>
+                <gf-value
+                  [isCurrency]="true"
+                  [locale]="user?.settings?.locale"
+                  [precision]="precision"
+                  [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                  [value]="
+                    showDetails
+                      ? twrPerformance?.totalInvestmentValueWithCurrencyEffect
+                      : undefined
+                  "
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-container position-relative">
+            <gf-line-chart
+              class="position-absolute"
+              [benchmarkDataItems]="contributionDataItems"
+              [benchmarkLabel]="contributionLabel"
+              [colorScheme]="user?.settings?.colorScheme"
+              [currency]="showDetails ? user?.settings?.baseCurrency : ''"
+              [hidden]="historicalDataItems?.length === 0"
+              [historicalDataItems]="historicalDataItems"
+              [isAnimated]="user?.settings?.dateRange === '1d' ? false : true"
+              [label]="performanceLabel"
+              [locale]="user?.settings?.locale"
+              [ngClass]="{ 'pr-3': deviceType === 'mobile' }"
+              [showGradient]="true"
+              [showLoader]="false"
+              [showXAxis]="false"
+              [showYAxis]="false"
+            />
+          </div>
+        </section>
       </div>
     </div>
-    <div class="overview-container row mt-1">
-      <div class="col">
-        <gf-portfolio-performance
-          class="pb-4"
-          [deviceType]="deviceType"
-          [errors]="errors"
-          [isAllTimeHigh]="isAllTimeHigh"
-          [isAllTimeLow]="isAllTimeLow"
-          [isLoading]="isLoadingPerformance"
-          [locale]="user?.settings?.locale"
-          [performance]="performance"
-          [precision]="precision"
-          [showDetails]="showDetails"
-          [unit]="unit"
-        />
+
+    <div class="overview-cards row mt-4 w-100">
+      <div class="col-12 col-lg-6 mb-3 mb-lg-0">
+        <section class="overview-panel performance-panel h-100">
+          <div class="eyebrow text-muted" i18n>Portfolio Return (TWR)</div>
+          <gf-portfolio-performance
+            class="pb-2 pt-2"
+            [deviceType]="deviceType"
+            [errors]="errors"
+            [isAllTimeHigh]="isAllTimeHigh"
+            [isAllTimeLow]="isAllTimeLow"
+            [isLoading]="isLoadingPerformance"
+            [locale]="user?.settings?.locale"
+            [performance]="twrPerformance"
+            [precision]="precision"
+            [showDetails]="showDetails"
+            [unit]="unit"
+          />
+        </section>
+      </div>
+      <div class="col-12 col-lg-6">
+        <section class="overview-panel performance-panel h-100">
+          <div class="eyebrow text-muted" i18n>Your Return (MWR)</div>
+          <gf-portfolio-performance
+            class="pb-2 pt-2"
+            [deviceType]="deviceType"
+            [errors]="errors"
+            [isAllTimeHigh]="isAllTimeHigh"
+            [isAllTimeLow]="isAllTimeLow"
+            [isLoading]="isLoadingPerformance"
+            [locale]="user?.settings?.locale"
+            [performance]="mwrPerformance"
+            [precision]="precision"
+            [showDetails]="showDetails"
+            [unit]="unit"
+          />
+        </section>
       </div>
     </div>
   }
