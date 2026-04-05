@@ -37,11 +37,13 @@ export class UpdateUserSettingDto {
 
   @IsIn([
     '1d',
+    '5d',
+    '1m',
+    '6m',
+    '4y',
     '1y',
     '5y',
     'max',
-    'mtd',
-    'wtd',
     'ytd',
     ...eachYearOfInterval({ end: new Date(), start: new Date(0) }).map(
       (date) => {

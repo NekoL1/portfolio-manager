@@ -3,10 +3,9 @@ import {
   endOfDay,
   endOfYear,
   max,
-  startOfMonth,
-  startOfWeek,
   startOfYear,
   subDays,
+  subMonths,
   subYears
 } from 'date-fns';
 import { isFinite, isNumber } from 'lodash';
@@ -49,26 +48,23 @@ export function getIntervalFromDateRange(params: {
     case '1d':
       startDate = max([startDate, subDays(resetHours(new Date()), 1)]);
       break;
-    case 'mtd':
-      startDate = max([
-        startDate,
-        subDays(startOfMonth(resetHours(new Date())), 1)
-      ]);
+    case '5d':
+      startDate = max([startDate, subDays(resetHours(new Date()), 5)]);
       break;
-    case 'wtd':
-      startDate = max([
-        startDate,
-        subDays(startOfWeek(resetHours(new Date()), { weekStartsOn: 1 }), 1)
-      ]);
+    case '1m':
+      startDate = max([startDate, subMonths(resetHours(new Date()), 1)]);
+      break;
+    case '6m':
+      startDate = max([startDate, subMonths(resetHours(new Date()), 6)]);
       break;
     case 'ytd':
-      startDate = max([
-        startDate,
-        subDays(startOfYear(resetHours(new Date())), 1)
-      ]);
+      startDate = max([startDate, startOfYear(resetHours(new Date()))]);
       break;
     case '1y':
       startDate = max([startDate, subYears(resetHours(new Date()), 1)]);
+      break;
+    case '4y':
+      startDate = max([startDate, subYears(resetHours(new Date()), 4)]);
       break;
     case '5y':
       startDate = max([startDate, subYears(resetHours(new Date()), 5)]);

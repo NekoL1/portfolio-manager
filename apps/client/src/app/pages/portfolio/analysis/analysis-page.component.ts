@@ -67,10 +67,13 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 export class GfAnalysisPageComponent implements OnInit {
   private static readonly PERFORMANCE_RANGES: DateRange[] = [
     '1d',
-    'wtd',
-    'mtd',
+    '5d',
+    '1m',
+    '6m',
     'ytd',
     '1y',
+    '4y',
+    '5y',
     'max'
   ];
 
@@ -104,12 +107,15 @@ export class GfAnalysisPageComponent implements OnInit {
   public performance: PortfolioPerformance;
   public performanceGraph: PortfolioPerformance;
   public performanceGraphDateRangeOptions: ToggleOption[] = [
-    { label: $localize`Today`, value: '1d' },
-    { label: $localize`WTD`, value: 'wtd' },
-    { label: $localize`MTD`, value: 'mtd' },
+    { label: $localize`1D`, value: '1d' },
+    { label: $localize`5D`, value: '5d' },
+    { label: $localize`1M`, value: '1m' },
+    { label: $localize`6M`, value: '6m' },
     { label: $localize`YTD`, value: 'ytd' },
     { label: $localize`1Y`, value: '1y' },
-    { label: $localize`Max`, value: 'max' }
+    { label: $localize`4Y`, value: '4y' },
+    { label: $localize`5Y`, value: '5y' },
+    { label: $localize`MAX`, value: 'max' }
   ];
   public performanceGraphLastUpdatedAt: string;
   public performanceRange: DateRange = 'max';
@@ -218,8 +224,15 @@ export class GfAnalysisPageComponent implements OnInit {
       return;
     }
 
-    this.performanceRange = range;
-    this.fetchPerformanceGraph();
+    this.dataService
+      .putUserSetting({ dateRange: range })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.userService
+          .get(true)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe();
+      });
   }
 
   public onCopyPromptToClipboard(mode: AiPromptMode) {

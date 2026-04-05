@@ -194,27 +194,39 @@ export class GfAssetProfileDialogComponent implements OnInit {
 
   public dateRangeOptions = [
     {
-      label: $localize`Current week` + ' (' + $localize`WTD` + ')',
-      value: 'wtd'
+      label: $localize`1D`,
+      value: '1d'
     },
     {
-      label: $localize`Current month` + ' (' + $localize`MTD` + ')',
-      value: 'mtd'
+      label: $localize`5D`,
+      value: '5d'
     },
     {
-      label: $localize`Current year` + ' (' + $localize`YTD` + ')',
+      label: $localize`1M`,
+      value: '1m'
+    },
+    {
+      label: $localize`6M`,
+      value: '6m'
+    },
+    {
+      label: $localize`YTD`,
       value: 'ytd'
     },
     {
-      label: '1 ' + $localize`year` + ' (' + $localize`1Y` + ')',
+      label: $localize`1Y`,
       value: '1y'
     },
     {
-      label: '5 ' + $localize`years` + ' (' + $localize`5Y` + ')',
+      label: $localize`4Y`,
+      value: '4y'
+    },
+    {
+      label: $localize`5Y`,
       value: '5y'
     },
     {
-      label: $localize`Max`,
+      label: $localize`MAX`,
       value: 'max'
     }
   ];

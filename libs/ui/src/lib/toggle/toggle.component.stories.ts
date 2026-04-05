@@ -23,11 +23,15 @@ export const Default: Story = {
     defaultValue: '1d',
     isLoading: false,
     options: [
-      { label: 'Today', value: '1d' },
+      { label: '1D', value: '1d' },
+      { label: '5D', value: '5d' },
+      { label: '1M', value: '1m' },
+      { label: '6M', value: '6m' },
       { label: 'YTD', value: 'ytd' },
       { label: '1Y', value: '1y' },
+      { label: '4Y', value: '4y' },
       { label: '5Y', value: '5y' },
-      { label: 'Max', value: 'max' }
+      { label: 'MAX', value: 'max' }
     ]
   }
 };

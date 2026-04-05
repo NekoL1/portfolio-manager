@@ -30,7 +30,6 @@ import { MatSelectModule } from '@angular/material/select';
 import { RouterModule } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { AssetClass, DataSource } from '@prisma/client';
-import { differenceInYears, eachYearOfInterval, format } from 'date-fns';
 import Fuse from 'fuse.js';
 import { addIcons } from 'ionicons';
 import {
@@ -359,61 +358,42 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
   public ngOnChanges() {
     this.dateRangeOptions = [
       {
-        label: $localize`Today`,
+        label: $localize`1D`,
         value: '1d'
       },
       {
-        label: $localize`Week to date` + ' (' + $localize`WTD` + ')',
-        value: 'wtd'
+        label: $localize`5D`,
+        value: '5d'
       },
       {
-        label: $localize`Month to date` + ' (' + $localize`MTD` + ')',
-        value: 'mtd'
+        label: $localize`1M`,
+        value: '1m'
       },
       {
-        label: $localize`Year to date` + ' (' + $localize`YTD` + ')',
+        label: $localize`6M`,
+        value: '6m'
+      },
+      {
+        label: $localize`YTD`,
         value: 'ytd'
+      },
+      {
+        label: $localize`1Y`,
+        value: '1y'
+      },
+      {
+        label: $localize`4Y`,
+        value: '4y'
+      },
+      {
+        label: $localize`5Y`,
+        value: '5y'
+      },
+      {
+        label: $localize`MAX`,
+        value: 'max'
       }
     ];
-
-    if (
-      this.user?.dateOfFirstActivity &&
-      differenceInYears(new Date(), this.user.dateOfFirstActivity) >= 1
-    ) {
-      this.dateRangeOptions.push({
-        label: '1 ' + $localize`year` + ' (' + $localize`1Y` + ')',
-        value: '1y'
-      });
-    }
-
-    if (this.user?.settings?.isExperimentalFeatures) {
-      this.dateRangeOptions = this.dateRangeOptions.concat(
-        eachYearOfInterval({
-          end: new Date(),
-          start: this.user?.dateOfFirstActivity ?? new Date()
-        })
-          .map((date) => {
-            return { label: format(date, 'yyyy'), value: format(date, 'yyyy') };
-          })
-          .slice(0, -1)
-          .reverse()
-      );
-    }
-
-    if (
-      this.user?.dateOfFirstActivity &&
-      differenceInYears(new Date(), this.user.dateOfFirstActivity) >= 5
-    ) {
-      this.dateRangeOptions.push({
-        label: '5 ' + $localize`years` + ' (' + $localize`5Y` + ')',
-        value: '5y'
-      });
-    }
-
-    this.dateRangeOptions.push({
-      label: $localize`Max`,
-      value: 'max'
-    });
 
     this.dateRangeFormControl.disable({ emitEvent: false });
 

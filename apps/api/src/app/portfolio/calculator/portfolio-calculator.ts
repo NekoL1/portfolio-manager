@@ -890,7 +890,17 @@ export abstract class PortfolioCalculator {
     chartDateMap[format(endDate, DATE_FORMAT)] = true;
 
     // Make sure some key dates are present
-    for (const dateRange of ['1d', '1y', '5y', 'max', 'mtd', 'wtd', 'ytd']) {
+    for (const dateRange of [
+      '1d',
+      '5d',
+      '1m',
+      '6m',
+      'ytd',
+      '1y',
+      '4y',
+      '5y',
+      'max'
+    ]) {
       const { endDate: dateRangeEnd, startDate: dateRangeStart } =
         getIntervalFromDateRange({ dateRange });
 

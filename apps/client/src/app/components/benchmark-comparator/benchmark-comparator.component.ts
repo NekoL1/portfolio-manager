@@ -383,9 +383,10 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
     switch (this.selectedRange) {
       case '1d':
         return 'hour';
-      case 'wtd':
-      case 'mtd':
+      case '5d':
+      case '1m':
         return 'day';
+      case '6m':
       case 'ytd':
       case '1y':
         return 'month';

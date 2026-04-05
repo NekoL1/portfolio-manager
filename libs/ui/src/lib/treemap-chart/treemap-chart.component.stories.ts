@@ -39,7 +39,7 @@ export const Default: Story = {
     baseCurrency: 'USD',
     colorScheme: 'LIGHT',
     cursor: undefined,
-    dateRange: 'mtd',
+    dateRange: '1m',
     locale: 'en-US'
   }
 };

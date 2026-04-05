@@ -846,12 +846,14 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
 
     for (const dateRange of [
       '1d',
+      '5d',
+      '1m',
+      '6m',
+      'ytd',
       '1y',
+      '4y',
       '5y',
       'max',
-      'mtd',
-      'wtd',
-      'ytd',
       ...eachYearOfInterval({ end, start })
         .filter((date) => {
           return !isThisYear(date);
