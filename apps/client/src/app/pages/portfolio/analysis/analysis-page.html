@@ -148,11 +148,16 @@
         [benchmarkDataItems]="benchmarkDataItems"
         [benchmarks]="benchmarks"
         [colorScheme]="user?.settings?.colorScheme"
-        [isLoading]="isLoadingBenchmarkComparator || isLoadingInvestmentChart"
+        [isLoading]="isLoadingBenchmarkComparator || isLoadingPerformanceGraph"
         [locale]="user?.settings?.locale"
-        [performanceDataItems]="performanceDataItemsInPercentage"
+        [performance]="performanceGraph"
+        [performanceDataItems]="performanceGraphDataItems"
+        [performanceDateRangeOptions]="performanceGraphDateRangeOptions"
+        [performanceLastUpdatedAt]="performanceGraphLastUpdatedAt"
+        [selectedRange]="performanceRange"
         [user]="user"
         (benchmarkChanged)="onChangeBenchmark($event)"
+        (selectedRangeChanged)="onChangePerformanceRange($event)"
       />
     </div>
   </div>

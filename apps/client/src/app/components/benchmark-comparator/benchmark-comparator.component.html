@@ -1,58 +1,110 @@
-<div class="mb-2 row">
-  <div class="col-md-6 col-xs-12 d-flex">
-    <div
-      class="align-items-center d-flex flex-grow-1 h5 mb-0 py-2 text-truncate"
-    >
-      <span i18n>Performance</span>
-      @if (user?.subscription?.type === 'Basic') {
-        <gf-premium-indicator class="ml-1" />
-      }
+<div class="performance-card">
+  <div class="d-flex flex-column flex-lg-row justify-content-between mb-3">
+    <div class="performance-summary mb-3 mb-lg-0 mr-lg-4">
+      <div class="align-items-center d-flex flex-wrap mb-2">
+        <h2 class="h4 mb-0 mr-3 text-truncate">
+          <span i18n>Performance</span>
+          @if (user?.subscription?.type === 'Basic') {
+            <gf-premium-indicator class="ml-1" />
+          }
+        </h2>
+      </div>
+
+      <div class="headline-value">{{ formattedCurrentValue }}</div>
+
+      <div class="align-items-center d-flex flex-wrap gap-2 performance-change">
+        <span class="change-badge" [class]="changeBadgeClass">
+          {{ changeDirectionSymbol }} {{ formattedPercentageChange }}%
+        </span>
+        <span
+          class="change-amount"
+          [ngClass]="{
+            'text-danger': absoluteChange < 0,
+            'text-success': absoluteChange > 0
+          }"
+        >
+          @if (absoluteChange < 0) {
+            -
+          } @else if (absoluteChange > 0) {
+            +
+          }
+          {{ formattedAbsoluteChange }} {{ currency }}
+          @if (rangeLabel) {
+            <span class="ml-1">{{ rangeLabel }}</span>
+          }
+        </span>
+      </div>
+
+      <div class="metadata-line text-muted">
+        {{ formattedLastUpdatedAt }}
+        @if (currency) {
+          <span> · {{ currency }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="benchmark-select">
+      <mat-form-field
+        appearance="outline"
+        class="w-100 without-hint"
+        color="accent"
+      >
+        <mat-label i18n>Compare with...</mat-label>
+        <mat-select
+          name="benchmark"
+          [disabled]="user?.subscription?.type === 'Basic'"
+          [value]="benchmark?.id"
+          (selectionChange)="onChangeBenchmark($event.value)"
+        >
+          <mat-option [value]="null" />
+          @for (symbolProfile of benchmarks; track symbolProfile) {
+            <mat-option [value]="symbolProfile.id">{{
+              symbolProfile.name
+            }}</mat-option>
+          }
+          @if (hasPermissionToAccessAdminControl) {
+            <mat-option [routerLink]="routerLinkAdminControlMarketData">
+              <div class="align-items-center d-flex">
+                <ion-icon
+                  class="mr-2 text-muted"
+                  name="arrow-forward-outline"
+                />
+                <span i18n>Manage Benchmarks</span>
+              </div>
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
     </div>
   </div>
-  <div class="col-md-6 col-xs-12 d-flex justify-content-end">
-    <mat-form-field
-      appearance="outline"
-      class="w-100 without-hint"
-      color="accent"
-    >
-      <mat-label i18n>Compare with...</mat-label>
-      <mat-select
-        name="benchmark"
-        [disabled]="user?.subscription?.type === 'Basic'"
-        [value]="benchmark?.id"
-        (selectionChange)="onChangeBenchmark($event.value)"
+
+  <div class="range-tabs mb-3">
+    @for (rangeOption of performanceDateRangeOptions; track rangeOption.value) {
+      <button
+        class="range-tab"
+        type="button"
+        [class.is-active]="rangeOption.value === selectedRange"
+        (click)="onChangeRange(rangeOption.value)"
       >
-        <mat-option [value]="null" />
-        @for (symbolProfile of benchmarks; track symbolProfile) {
-          <mat-option [value]="symbolProfile.id">{{
-            symbolProfile.name
-          }}</mat-option>
-        }
-        @if (hasPermissionToAccessAdminControl) {
-          <mat-option [routerLink]="routerLinkAdminControlMarketData">
-            <div class="align-items-center d-flex">
-              <ion-icon class="mr-2 text-muted" name="arrow-forward-outline" />
-              <span i18n>Manage Benchmarks</span>
-            </div>
-          </mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+        {{ rangeOption.label }}
+      </button>
+    }
   </div>
-</div>
-<div class="chart-container">
-  @if (isLoading) {
-    <ngx-skeleton-loader
-      animation="pulse"
-      [theme]="{
-        height: '100%',
-        width: '100%'
-      }"
-    />
-  }
-  <canvas
-    #chartCanvas
-    class="h-100"
-    [ngStyle]="{ display: isLoading ? 'none' : 'block' }"
-  ></canvas>
+
+  <div class="chart-container">
+    @if (isLoading) {
+      <ngx-skeleton-loader
+        animation="pulse"
+        [theme]="{
+          height: '100%',
+          width: '100%'
+        }"
+      />
+    }
+    <canvas
+      #chartCanvas
+      class="h-100"
+      [ngStyle]="{ display: isLoading ? 'none' : 'block' }"
+    ></canvas>
+  </div>
 </div>

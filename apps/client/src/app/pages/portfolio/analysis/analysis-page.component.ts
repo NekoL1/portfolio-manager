@@ -14,6 +14,7 @@ import {
 } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import type { AiPromptMode, GroupBy } from '@ghostfolio/common/types';
+import { DateRange } from '@ghostfolio/common/types/date-range.type';
 import { translate } from '@ghostfolio/ui/i18n';
 import { GfPremiumIndicatorComponent } from '@ghostfolio/ui/premium-indicator';
 import { DataService } from '@ghostfolio/ui/services';
@@ -64,6 +65,15 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
   templateUrl: './analysis-page.html'
 })
 export class GfAnalysisPageComponent implements OnInit {
+  private static readonly PERFORMANCE_RANGES: DateRange[] = [
+    '1d',
+    'wtd',
+    'mtd',
+    'ytd',
+    '1y',
+    'max'
+  ];
+
   @ViewChild(MatMenuTrigger) actionsMenuButton!: MatMenuTrigger;
 
   public benchmark: Partial<SymbolProfile>;
@@ -84,6 +94,7 @@ export class GfAnalysisPageComponent implements OnInit {
   public isLoadingDividendTimelineChart: boolean;
   public isLoadingInvestmentChart: boolean;
   public isLoadingInvestmentTimelineChart: boolean;
+  public isLoadingPerformanceGraph: boolean;
   public isLoadingPortfolioPrompt: boolean;
   public mode: GroupBy = 'month';
   public modeOptions: ToggleOption[] = [
@@ -91,8 +102,19 @@ export class GfAnalysisPageComponent implements OnInit {
     { label: $localize`Yearly`, value: 'year' }
   ];
   public performance: PortfolioPerformance;
+  public performanceGraph: PortfolioPerformance;
+  public performanceGraphDateRangeOptions: ToggleOption[] = [
+    { label: $localize`Today`, value: '1d' },
+    { label: $localize`WTD`, value: 'wtd' },
+    { label: $localize`MTD`, value: 'mtd' },
+    { label: $localize`YTD`, value: 'ytd' },
+    { label: $localize`1Y`, value: '1y' },
+    { label: $localize`Max`, value: 'max' }
+  ];
+  public performanceGraphLastUpdatedAt: string;
+  public performanceRange: DateRange = 'max';
   public performanceDataItems: HistoricalDataItem[];
-  public performanceDataItemsInPercentage: HistoricalDataItem[];
+  public performanceGraphDataItems: HistoricalDataItem[];
   public portfolioEvolutionDataLabel = $localize`Investment`;
   public precision = 2;
   public streaks: PortfolioInvestmentsResponse['streaks'];
@@ -148,6 +170,13 @@ export class GfAnalysisPageComponent implements OnInit {
             return id === this.user.settings?.benchmark;
           });
 
+          this.performanceRange =
+            GfAnalysisPageComponent.PERFORMANCE_RANGES.includes(
+              this.user.settings?.dateRange as DateRange
+            )
+              ? (this.user.settings?.dateRange as DateRange)
+              : 'max';
+
           this.hasPermissionToReadAiPrompt = hasPermission(
             this.user.permissions,
             permissions.readAiPrompt
@@ -168,6 +197,11 @@ export class GfAnalysisPageComponent implements OnInit {
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe((user) => {
             this.user = user;
+            this.benchmark = this.benchmarks.find(({ id }) => {
+              return id === this.user.settings?.benchmark;
+            });
+
+            this.updateBenchmarkDataItems();
 
             this.changeDetectorRef.markForCheck();
           });
@@ -177,6 +211,15 @@ export class GfAnalysisPageComponent implements OnInit {
   public onChangeGroupBy(aMode: GroupBy) {
     this.mode = aMode;
     this.fetchDividendsAndInvestments();
+  }
+
+  public onChangePerformanceRange(range: DateRange) {
+    if (this.performanceRange === range) {
+      return;
+    }
+
+    this.performanceRange = range;
+    this.fetchPerformanceGraph();
   }
 
   public onCopyPromptToClipboard(mode: AiPromptMode) {
@@ -274,6 +317,7 @@ export class GfAnalysisPageComponent implements OnInit {
 
   private update() {
     this.isLoadingInvestmentChart = true;
+    this.fetchPerformanceGraph();
 
     this.dataService
       .fetchPortfolioPerformance({
@@ -287,13 +331,11 @@ export class GfAnalysisPageComponent implements OnInit {
         this.investments = [];
         this.performance = performance;
         this.performanceDataItems = [];
-        this.performanceDataItemsInPercentage = [];
 
         for (const [
           index,
           {
             date,
-            netPerformanceInPercentageWithCurrencyEffect,
             totalInvestmentValueWithCurrencyEffect,
             valueInPercentage,
             valueWithCurrencyEffect
@@ -312,11 +354,6 @@ export class GfAnalysisPageComponent implements OnInit {
                 : valueInPercentage
             });
           }
-
-          this.performanceDataItemsInPercentage.push({
-            date,
-            value: netPerformanceInPercentageWithCurrencyEffect
-          });
         }
 
         if (
@@ -328,8 +365,6 @@ export class GfAnalysisPageComponent implements OnInit {
         }
 
         this.isLoadingInvestmentChart = false;
-
-        this.updateBenchmarkDataItems();
 
         this.changeDetectorRef.markForCheck();
       });
@@ -370,6 +405,48 @@ export class GfAnalysisPageComponent implements OnInit {
     this.changeDetectorRef.markForCheck();
   }
 
+  private fetchPerformanceGraph() {
+    this.isLoadingPerformanceGraph = true;
+    this.isLoadingBenchmarkComparator = !!this.user?.settings?.benchmark;
+
+    this.dataService
+      .fetchPortfolioPerformance({
+        filters: this.userService.getFilters(),
+        range: this.performanceRange
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ chart, firstOrderDate, performance }) => {
+        this.firstOrderDate =
+          firstOrderDate ?? this.firstOrderDate ?? new Date();
+        this.performanceGraph = performance;
+        this.performanceGraphDataItems = [];
+        this.performanceGraphLastUpdatedAt = undefined;
+
+        for (const [
+          index,
+          { date, valueInPercentage, valueWithCurrencyEffect }
+        ] of chart.entries()) {
+          if (index > 0 || this.performanceRange === 'max') {
+            this.performanceGraphDataItems.push({
+              date,
+              value: isNumber(valueWithCurrencyEffect)
+                ? valueWithCurrencyEffect
+                : valueInPercentage
+            });
+          }
+        }
+
+        this.performanceGraphLastUpdatedAt =
+          this.performanceGraphDataItems.at(-1)?.date ?? chart.at(-1)?.date;
+
+        this.isLoadingPerformanceGraph = false;
+
+        this.updateBenchmarkDataItems();
+
+        this.changeDetectorRef.markForCheck();
+      });
+  }
+
   private updateBenchmarkDataItems() {
     this.benchmarkDataItems = [];
 
@@ -387,8 +464,8 @@ export class GfAnalysisPageComponent implements OnInit {
             dataSource,
             symbol,
             filters: this.userService.getFilters(),
-            range: this.user?.settings?.dateRange,
-            startDate: this.firstOrderDate
+            range: this.performanceRange,
+            startDate: this.firstOrderDate ?? new Date()
           })
           .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe(({ marketData }) => {

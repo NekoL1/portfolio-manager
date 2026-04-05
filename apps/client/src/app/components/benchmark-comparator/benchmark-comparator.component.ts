@@ -1,19 +1,23 @@
 import {
-  getTooltipOptions,
-  getVerticalHoverLinePlugin
+  getVerticalHoverLinePlugin,
+  transformTickToAbbreviation
 } from '@ghostfolio/common/chart-helper';
 import { primaryColorRgb, secondaryColorRgb } from '@ghostfolio/common/config';
 import {
   getBackgroundColor,
-  getDateFormatString,
   getLocale,
   getTextColor,
   parseDate
 } from '@ghostfolio/common/helper';
-import { LineChartItem, User } from '@ghostfolio/common/interfaces';
+import {
+  PortfolioPerformance,
+  ToggleOption,
+  User,
+  LineChartItem
+} from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import { internalRoutes } from '@ghostfolio/common/routes/routes';
-import { ColorScheme } from '@ghostfolio/common/types';
+import { ColorScheme, DateRange } from '@ghostfolio/common/types';
 import { registerChartConfiguration } from '@ghostfolio/ui/chart';
 import { GfPremiumIndicatorComponent } from '@ghostfolio/ui/premium-indicator';
 
@@ -37,10 +41,12 @@ import { SymbolProfile } from '@prisma/client';
 import {
   Chart,
   ChartData,
+  Filler,
   LinearScale,
   LineController,
   LineElement,
   PointElement,
+  TimeUnit,
   TimeScale,
   Tooltip,
   type TooltipOptions
@@ -74,10 +80,15 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
   @Input() colorScheme: ColorScheme;
   @Input() isLoading: boolean;
   @Input() locale = getLocale();
+  @Input() performance: PortfolioPerformance;
   @Input() performanceDataItems: LineChartItem[];
+  @Input() performanceDateRangeOptions: ToggleOption[] = [];
+  @Input() performanceLastUpdatedAt: string;
+  @Input() selectedRange: DateRange;
   @Input() user: User;
 
   @Output() benchmarkChanged = new EventEmitter<string>();
+  @Output() selectedRangeChanged = new EventEmitter<DateRange>();
 
   @ViewChild('chartCanvas') chartCanvas: ElementRef<HTMLCanvasElement>;
 
@@ -89,6 +100,7 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
   public constructor() {
     Chart.register(
       annotationPlugin,
+      Filler,
       LinearScale,
       LineController,
       LineElement,
@@ -108,7 +120,7 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
       permissions.accessAdminControl
     );
 
-    if (this.performanceDataItems) {
+    if (this.performanceDataItems?.length) {
       this.initialize();
     }
   }
@@ -117,12 +129,93 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
     this.benchmarkChanged.next(symbolProfileId);
   }
 
+  public onChangeRange(range: DateRange) {
+    this.selectedRangeChanged.next(range);
+  }
+
   public ngOnDestroy() {
     this.chart?.destroy();
   }
 
+  public get absoluteChange() {
+    return this.performance?.netPerformanceWithCurrencyEffect ?? 0;
+  }
+
+  public get changeBadgeClass() {
+    if (this.absoluteChange > 0) {
+      return 'change-positive';
+    } else if (this.absoluteChange < 0) {
+      return 'change-negative';
+    }
+
+    return 'change-neutral';
+  }
+
+  public get changeDirectionSymbol() {
+    if (this.absoluteChange > 0) {
+      return '↑';
+    } else if (this.absoluteChange < 0) {
+      return '↓';
+    }
+
+    return '•';
+  }
+
+  public get currency() {
+    return this.user?.settings?.baseCurrency;
+  }
+
+  public get formattedAbsoluteChange() {
+    return Math.abs(this.absoluteChange).toLocaleString(this.locale, {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    });
+  }
+
+  public get formattedCurrentValue() {
+    const currency = this.currency ?? '';
+
+    if (!currency) {
+      return '';
+    }
+
+    return new Intl.NumberFormat(this.locale, {
+      currency,
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2,
+      style: 'currency'
+    }).format(this.performance?.currentValueInBaseCurrency ?? 0);
+  }
+
+  public get formattedLastUpdatedAt() {
+    if (!this.performanceLastUpdatedAt) {
+      return '';
+    }
+
+    return new Intl.DateTimeFormat(this.locale, {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(parseDate(this.performanceLastUpdatedAt));
+  }
+
+  public get formattedPercentageChange() {
+    return Math.abs(
+      (this.performance?.netPerformancePercentageWithCurrencyEffect ?? 0) * 100
+    ).toLocaleString(this.locale, {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    });
+  }
+
+  public get rangeLabel() {
+    return this.performanceDateRangeOptions.find(({ value }) => {
+      return value === this.selectedRange;
+    })?.label;
+  }
+
   private initialize() {
     const benchmarkDataValues: Record<string, number> = {};
+    const currency = this.currency;
 
     for (const { date, value } of this.benchmarkDataItems) {
       benchmarkDataValues[date] = value;
@@ -131,25 +224,43 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
     const data: ChartData<'line'> = {
       datasets: [
         {
-          backgroundColor: `rgb(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b})`,
+          backgroundColor: `rgba(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b}, 0.16)`,
           borderColor: `rgb(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b})`,
           borderWidth: 2,
+          fill: true,
           data: this.performanceDataItems.map(({ date, value }) => {
-            return { x: parseDate(date).getTime(), y: value * 100 };
+            return { x: parseDate(date).getTime(), y: value };
           }),
-          label: $localize`Portfolio`
+          label: $localize`Portfolio`,
+          pointBackgroundColor: `rgb(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b})`,
+          pointHoverRadius: 5,
+          pointRadius: (context) => {
+            return context.dataIndex === this.performanceDataItems.length - 1
+              ? 5
+              : 0;
+          }
         },
         {
           backgroundColor: `rgb(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b})`,
           borderColor: `rgb(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b})`,
           borderWidth: 2,
-          data: this.performanceDataItems.map(({ date }) => {
+          data: this.performanceDataItems.map(({ date, value }) => {
+            const benchmarkValue = benchmarkDataValues[date];
+
             return {
               x: parseDate(date).getTime(),
-              y: benchmarkDataValues[date]
+              y:
+                benchmarkValue === undefined || benchmarkValue === null
+                  ? null
+                  : value * (1 + benchmarkValue)
             };
           }),
-          label: this.benchmark?.name ?? $localize`Benchmark`
+          hidden: !this.benchmark?.name,
+          label: this.benchmark?.name ?? $localize`Benchmark`,
+          pointHoverRadius: 3,
+          pointRadius: 0,
+          spanGaps: true,
+          yAxisID: 'yBenchmark'
         }
       ]
     };
@@ -159,7 +270,14 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
         this.chart.data = data;
         this.chart.options.plugins ??= {};
         this.chart.options.plugins.tooltip =
-          this.getTooltipPluginConfiguration();
+          this.getTooltipPluginConfiguration(currency);
+        const xScale = this.chart.options.scales?.['x'] as {
+          time?: { unit?: TimeUnit };
+        };
+
+        if (xScale?.time) {
+          xScale.time.unit = this.getTimeUnit();
+        }
 
         this.chart.update();
       } else {
@@ -173,7 +291,7 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
               },
               point: {
                 hoverBackgroundColor: getBackgroundColor(this.colorScheme),
-                hoverRadius: 2,
+                hoverRadius: 4,
                 radius: 0
               }
             },
@@ -194,7 +312,7 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
               legend: {
                 display: false
               },
-              tooltip: this.getTooltipPluginConfiguration(),
+              tooltip: this.getTooltipPluginConfiguration(currency),
               verticalHoverLine: {
                 color: `rgba(${getTextColor(this.colorScheme)}, 0.1)`
               }
@@ -212,8 +330,7 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
                 },
                 type: 'time',
                 time: {
-                  tooltipFormat: getDateFormatString(this.locale),
-                  unit: 'year'
+                  unit: this.getTimeUnit()
                 }
               },
               y: {
@@ -223,25 +340,32 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
                 display: true,
                 grid: {
                   color: ({ scale, tick }) => {
-                    if (
-                      tick.value === 0 ||
-                      tick.value === scale.max ||
-                      tick.value === scale.min
-                    ) {
-                      return `rgba(${getTextColor(this.colorScheme)}, 0.1)`;
-                    }
-
-                    return 'transparent';
+                    return `rgba(${getTextColor(this.colorScheme)}, ${
+                      tick.value === scale.max || tick.value === scale.min
+                        ? 0.08
+                        : 0.04
+                    })`;
                   }
                 },
-                position: 'right',
+                position: 'left',
                 ticks: {
                   callback: (value: number) => {
-                    return `${value.toFixed(2)} %`;
+                    return currency
+                      ? `${transformTickToAbbreviation(value)}`
+                      : transformTickToAbbreviation(value);
                   },
                   display: true,
-                  mirror: true,
                   z: 1
+                }
+              },
+              yBenchmark: {
+                border: {
+                  width: 0
+                },
+                display: false,
+                position: 'right',
+                ticks: {
+                  display: false
                 }
               }
             }
@@ -255,15 +379,67 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
     }
   }
 
-  private getTooltipPluginConfiguration(): Partial<TooltipOptions<'line'>> {
+  private getTimeUnit(): TimeUnit {
+    switch (this.selectedRange) {
+      case '1d':
+        return 'hour';
+      case 'wtd':
+      case 'mtd':
+        return 'day';
+      case 'ytd':
+      case '1y':
+        return 'month';
+      default:
+        return 'year';
+    }
+  }
+
+  private getTooltipPluginConfiguration(
+    currency: string
+  ): Partial<TooltipOptions<'line'>> {
     return {
-      ...getTooltipOptions({
-        colorScheme: this.colorScheme,
-        locale: this.locale,
-        unit: '%'
-      }),
+      backgroundColor: getBackgroundColor(this.colorScheme),
+      bodyColor: `rgb(${getTextColor(this.colorScheme)})`,
+      borderColor: `rgba(${getTextColor(this.colorScheme)}, 0.1)`,
+      borderWidth: 1,
+      callbacks: {
+        label: (context) => {
+          let label = context.dataset.label ? `${context.dataset.label}: ` : '';
+          const yPoint = context.parsed.y;
+
+          if (yPoint === null) {
+            return label;
+          }
+
+          if (context.dataset.yAxisID === 'yBenchmark') {
+            const index = context.dataIndex;
+            const value = (this.benchmarkDataItems[index]?.value ?? 0) * 100;
+
+            return `${label}${value.toLocaleString(this.locale, {
+              maximumFractionDigits: 2,
+              minimumFractionDigits: 2
+            })} %`;
+          }
+
+          return `${label}${yPoint.toLocaleString(this.locale, {
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 2
+          })} ${currency}`;
+        },
+        title: (contexts) => {
+          return new Intl.DateTimeFormat(this.locale, {
+            dateStyle: this.selectedRange === '1d' ? 'medium' : 'medium',
+            timeStyle: this.selectedRange === '1d' ? 'short' : undefined
+          }).format((contexts[0].parsed.x as number) ?? 0);
+        }
+      } as never,
+      caretSize: 0,
+      cornerRadius: 2,
+      footerColor: `rgb(${getTextColor(this.colorScheme)})`,
       mode: 'index',
       position: 'top',
+      titleColor: `rgb(${getTextColor(this.colorScheme)})`,
+      usePointStyle: true,
       xAlign: 'center',
       yAlign: 'bottom'
     };
