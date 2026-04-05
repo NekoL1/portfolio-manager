@@ -874,45 +874,6 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       const currentValuesAtDateRangeStartWithCurrencyEffect =
         currentValuesWithCurrencyEffect[rangeStartDateString] ?? new Big(0);
 
-      const investmentValuesAccumulatedAtStartDateWithCurrencyEffect =
-        investmentValuesAccumulatedWithCurrencyEffect[rangeStartDateString] ??
-        new Big(0);
-
-      const grossPerformanceAtDateRangeStartWithCurrencyEffect =
-        currentValuesAtDateRangeStartWithCurrencyEffect.minus(
-          investmentValuesAccumulatedAtStartDateWithCurrencyEffect
-        );
-
-      let average = new Big(0);
-      let dayCount = 0;
-
-      for (let i = this.chartDates.length - 1; i >= 0; i -= 1) {
-        const date = this.chartDates[i];
-
-        if (date > rangeEndDateString) {
-          continue;
-        } else if (date < rangeStartDateString) {
-          break;
-        }
-
-        if (
-          investmentValuesAccumulatedWithCurrencyEffect[date] instanceof Big &&
-          investmentValuesAccumulatedWithCurrencyEffect[date].gt(0)
-        ) {
-          average = average.add(
-            investmentValuesAccumulatedWithCurrencyEffect[date].add(
-              grossPerformanceAtDateRangeStartWithCurrencyEffect
-            )
-          );
-
-          dayCount++;
-        }
-      }
-
-      if (dayCount > 0) {
-        average = average.div(dayCount);
-      }
-
       netPerformanceWithCurrencyEffectMap[dateRange] =
         netPerformanceValuesWithCurrencyEffect[rangeEndDateString]?.minus(
           // If the date range is 'max', take 0 as a start value. Otherwise,
@@ -924,9 +885,34 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
                 new Big(0))
         ) ?? new Big(0);
 
-      netPerformancePercentageWithCurrencyEffectMap[dateRange] = average.gt(0)
-        ? netPerformanceWithCurrencyEffectMap[dateRange].div(average)
-        : new Big(0);
+      let rangeStartValueWithCurrencyEffect =
+        currentValuesAtDateRangeStartWithCurrencyEffect;
+
+      if (rangeStartValueWithCurrencyEffect.lte(0)) {
+        for (const date of this.chartDates) {
+          if (date < rangeStartDateString || date > rangeEndDateString) {
+            continue;
+          }
+
+          const currentValueWithCurrencyEffect =
+            currentValuesWithCurrencyEffect[date];
+
+          if (
+            currentValueWithCurrencyEffect instanceof Big &&
+            currentValueWithCurrencyEffect.gt(0)
+          ) {
+            rangeStartValueWithCurrencyEffect = currentValueWithCurrencyEffect;
+            break;
+          }
+        }
+      }
+
+      netPerformancePercentageWithCurrencyEffectMap[dateRange] =
+        rangeStartValueWithCurrencyEffect.gt(0)
+          ? netPerformanceWithCurrencyEffectMap[dateRange].div(
+              rangeStartValueWithCurrencyEffect
+            )
+          : new Big(0);
     }
 
     if (PortfolioCalculator.ENABLE_LOGGING) {

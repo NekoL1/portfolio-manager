@@ -57,7 +57,7 @@ import {
   startOfYear,
   subDays
 } from 'date-fns';
-import { isNumber, sortBy, sum, uniqBy } from 'lodash';
+import { isNumber, sortBy, uniqBy } from 'lodash';
 
 export abstract class PortfolioCalculator {
   protected static readonly ENABLE_LOGGING = false;
@@ -725,7 +725,8 @@ export abstract class PortfolioCalculator {
 
     let netPerformanceAtStartDate: number;
     let netPerformanceWithCurrencyEffectAtStartDate: number;
-    const totalInvestmentValuesWithCurrencyEffect: number[] = [];
+    let valueAtStartDate: number;
+    let valueWithCurrencyEffectAtStartDate: number;
 
     for (const historicalDataItem of historicalData) {
       const date = resetHours(parseDate(historicalDataItem.date));
@@ -736,6 +737,10 @@ export abstract class PortfolioCalculator {
 
           netPerformanceWithCurrencyEffectAtStartDate =
             historicalDataItem.netPerformanceWithCurrencyEffect;
+
+          valueAtStartDate = historicalDataItem.value;
+          valueWithCurrencyEffectAtStartDate =
+            historicalDataItem.valueWithCurrencyEffect;
         }
 
         const netPerformanceSinceStartDate =
@@ -745,18 +750,6 @@ export abstract class PortfolioCalculator {
           historicalDataItem.netPerformanceWithCurrencyEffect -
           netPerformanceWithCurrencyEffectAtStartDate;
 
-        if (historicalDataItem.totalInvestmentValueWithCurrencyEffect > 0) {
-          totalInvestmentValuesWithCurrencyEffect.push(
-            historicalDataItem.totalInvestmentValueWithCurrencyEffect
-          );
-        }
-
-        const timeWeightedInvestmentValue =
-          totalInvestmentValuesWithCurrencyEffect.length > 0
-            ? sum(totalInvestmentValuesWithCurrencyEffect) /
-              totalInvestmentValuesWithCurrencyEffect.length
-            : 0;
-
         chart.push({
           ...historicalDataItem,
           netPerformance:
@@ -764,14 +757,14 @@ export abstract class PortfolioCalculator {
           netPerformanceWithCurrencyEffect:
             netPerformanceWithCurrencyEffectSinceStartDate,
           netPerformanceInPercentage:
-            timeWeightedInvestmentValue === 0
+            valueAtStartDate === 0
               ? 0
-              : netPerformanceSinceStartDate / timeWeightedInvestmentValue,
+              : netPerformanceSinceStartDate / valueAtStartDate,
           netPerformanceInPercentageWithCurrencyEffect:
-            timeWeightedInvestmentValue === 0
+            valueWithCurrencyEffectAtStartDate === 0
               ? 0
               : netPerformanceWithCurrencyEffectSinceStartDate /
-                timeWeightedInvestmentValue
+                valueWithCurrencyEffectAtStartDate
           // TODO: Add net worth
           // netWorth: totalCurrentValueWithCurrencyEffect
           //   .plus(totalAccountBalanceWithCurrencyEffect)
