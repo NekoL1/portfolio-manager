@@ -725,11 +725,6 @@ export abstract class PortfolioCalculator {
 
     let netPerformanceAtStartDate: number;
     let netPerformanceWithCurrencyEffectAtStartDate: number;
-    let valueAtStartDate: number;
-    let valueWithCurrencyEffectAtStartDate: number;
-    let rangeStartValue: number;
-    let rangeStartValueWithCurrencyEffect: number;
-
     for (const historicalDataItem of historicalData) {
       const date = resetHours(parseDate(historicalDataItem.date));
 
@@ -739,19 +734,6 @@ export abstract class PortfolioCalculator {
 
           netPerformanceWithCurrencyEffectAtStartDate =
             historicalDataItem.netPerformanceWithCurrencyEffect;
-
-          valueAtStartDate = historicalDataItem.value;
-          valueWithCurrencyEffectAtStartDate =
-            historicalDataItem.valueWithCurrencyEffect;
-        }
-
-        if (
-          !isNumber(rangeStartValue) &&
-          historicalDataItem.valueWithCurrencyEffect > 0
-        ) {
-          rangeStartValue = historicalDataItem.value;
-          rangeStartValueWithCurrencyEffect =
-            historicalDataItem.valueWithCurrencyEffect;
         }
 
         const netPerformanceSinceStartDate =
@@ -768,17 +750,15 @@ export abstract class PortfolioCalculator {
           netPerformanceWithCurrencyEffect:
             netPerformanceWithCurrencyEffectSinceStartDate,
           netPerformanceInPercentage:
-            (rangeStartValue ?? valueAtStartDate) === 0
+            historicalDataItem.totalInvestment === 0
               ? 0
               : netPerformanceSinceStartDate /
-                (rangeStartValue ?? valueAtStartDate),
+                historicalDataItem.totalInvestment,
           netPerformanceInPercentageWithCurrencyEffect:
-            (rangeStartValueWithCurrencyEffect ??
-              valueWithCurrencyEffectAtStartDate) === 0
+            historicalDataItem.totalInvestmentValueWithCurrencyEffect === 0
               ? 0
               : netPerformanceWithCurrencyEffectSinceStartDate /
-                (rangeStartValueWithCurrencyEffect ??
-                  valueWithCurrencyEffectAtStartDate)
+                historicalDataItem.totalInvestmentValueWithCurrencyEffect
           // TODO: Add net worth
           // netWorth: totalCurrentValueWithCurrencyEffect
           //   .plus(totalAccountBalanceWithCurrencyEffect)

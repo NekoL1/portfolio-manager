@@ -873,9 +873,6 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       const rangeEndDateString = format(endDate, DATE_FORMAT);
       const rangeStartDateString = format(startDate, DATE_FORMAT);
 
-      const currentValuesAtDateRangeStartWithCurrencyEffect =
-        currentValuesWithCurrencyEffect[rangeStartDateString] ?? new Big(0);
-
       netPerformanceWithCurrencyEffectMap[dateRange] =
         netPerformanceValuesWithCurrencyEffect[rangeEndDateString]?.minus(
           // If the date range is 'max', take 0 as a start value. Otherwise,
@@ -887,32 +884,14 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
                 new Big(0))
         ) ?? new Big(0);
 
-      let rangeStartValueWithCurrencyEffect =
-        currentValuesAtDateRangeStartWithCurrencyEffect;
-
-      if (rangeStartValueWithCurrencyEffect.lte(0)) {
-        for (const date of this.chartDates) {
-          if (date < rangeStartDateString || date > rangeEndDateString) {
-            continue;
-          }
-
-          const currentValueWithCurrencyEffect =
-            currentValuesWithCurrencyEffect[date];
-
-          if (
-            currentValueWithCurrencyEffect instanceof Big &&
-            currentValueWithCurrencyEffect.gt(0)
-          ) {
-            rangeStartValueWithCurrencyEffect = currentValueWithCurrencyEffect;
-            break;
-          }
-        }
-      }
+      const costBasisWithCurrencyEffect =
+        investmentValuesAccumulatedWithCurrencyEffect[rangeEndDateString] ??
+        new Big(0);
 
       netPerformancePercentageWithCurrencyEffectMap[dateRange] =
-        rangeStartValueWithCurrencyEffect.gt(0)
+        costBasisWithCurrencyEffect.gt(0)
           ? netPerformanceWithCurrencyEffectMap[dateRange].div(
-              rangeStartValueWithCurrencyEffect
+              costBasisWithCurrencyEffect
             )
           : new Big(0);
     }
