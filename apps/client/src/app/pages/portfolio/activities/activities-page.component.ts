@@ -67,6 +67,7 @@ export class GfActivitiesPageComponent implements OnInit {
   public sortDirection: SortDirection = 'desc';
   public totalItems: number;
   public user: User;
+  private locallySortedActivities: Activity[] = [];
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -138,6 +139,7 @@ export class GfActivitiesPageComponent implements OnInit {
     const dateRange = this.user?.settings?.dateRange;
 
     const range = this.isCalendarYear(dateRange) ? dateRange : undefined;
+    const shouldSortLocally = this.shouldSortActivitiesLocally();
 
     this.dataService
       .fetchActivities({
@@ -146,15 +148,22 @@ export class GfActivitiesPageComponent implements OnInit {
           ? this.activityTypesFilter
           : undefined,
         filters: this.userService.getFilters(),
-        skip: this.pageIndex * this.pageSize,
-        sortColumn: this.sortColumn,
-        sortDirection: this.sortDirection,
-        take: this.pageSize
+        skip: shouldSortLocally ? undefined : this.pageIndex * this.pageSize,
+        sortColumn: shouldSortLocally ? undefined : this.sortColumn,
+        sortDirection: shouldSortLocally ? undefined : this.sortDirection,
+        take: shouldSortLocally ? undefined : this.pageSize
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(({ activities, count }) => {
-        this.dataSource = new MatTableDataSource(activities);
         this.totalItems = count;
+
+        if (shouldSortLocally) {
+          this.locallySortedActivities = this.sortActivitiesLocally(activities);
+          this.updateLocalDataSource();
+        } else {
+          this.locallySortedActivities = [];
+          this.dataSource = new MatTableDataSource(activities);
+        }
 
         if (
           this.hasPermissionToCreateActivity &&
@@ -170,7 +179,11 @@ export class GfActivitiesPageComponent implements OnInit {
   public onChangePage(page: PageEvent) {
     this.pageIndex = page.pageIndex;
 
-    this.fetchActivities();
+    if (this.shouldSortActivitiesLocally()) {
+      this.updateLocalDataSource();
+    } else {
+      this.fetchActivities();
+    }
   }
 
   public onClickActivity({ dataSource, symbol }: AssetProfileIdentifier) {
@@ -321,8 +334,14 @@ export class GfActivitiesPageComponent implements OnInit {
 
   public onSortChanged({ active, direction }: Sort) {
     this.pageIndex = 0;
-    this.sortColumn = active;
-    this.sortDirection = direction;
+
+    if (!direction) {
+      this.sortColumn = 'date';
+      this.sortDirection = 'desc';
+    } else {
+      this.sortColumn = active;
+      this.sortDirection = direction;
+    }
 
     this.fetchActivities();
   }
@@ -379,6 +398,31 @@ export class GfActivitiesPageComponent implements OnInit {
     }
 
     return /^\d{4}$/.test(dateRange);
+  }
+
+  private shouldSortActivitiesLocally() {
+    return this.sortColumn === 'value';
+  }
+
+  private sortActivitiesLocally(activities: Activity[]) {
+    return [...activities].sort((activity1, activity2) => {
+      const valueDifference = (activity1?.value ?? 0) - (activity2?.value ?? 0);
+
+      if (valueDifference === 0) {
+        return activity1.date > activity2.date ? -1 : 1;
+      }
+
+      return this.sortDirection === 'asc' ? valueDifference : -valueDifference;
+    });
+  }
+
+  private updateLocalDataSource() {
+    const startIndex = this.pageIndex * this.pageSize;
+    const endIndex = startIndex + this.pageSize;
+
+    this.dataSource = new MatTableDataSource(
+      this.locallySortedActivities.slice(startIndex, endIndex)
+    );
   }
 
   private openCreateActivityDialog(aActivity?: Activity) {

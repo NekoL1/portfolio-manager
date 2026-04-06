@@ -103,6 +103,8 @@ export const DEFAULT_REDACTED_PATHS = [
   'activities[*].quantity',
   'activities[*].SymbolProfile.symbolMapping',
   'activities[*].SymbolProfile.watchedByCount',
+  'activities[*].totalGain',
+  'activities[*].totalGainPercent',
   'activities[*].value',
   'activities[*].valueInBaseCurrency',
   'balance',

@@ -10,10 +10,15 @@
   }
 
   .overview-panel {
-    background: rgba(var(--dark-primary-text), 0.02);
+    background: linear-gradient(
+      180deg,
+      rgba(var(--dark-primary-text), 0.028) 0%,
+      rgba(var(--dark-primary-text), 0.02) 100%
+    );
     border: 1px solid rgba(var(--dark-primary-text), 0.08);
-    border-radius: 1rem;
-    padding: 1.5rem;
+    border-radius: 1.25rem;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+    padding: 1.75rem;
   }
 
   .chart-container {
@@ -49,12 +54,13 @@
   }
 
   .chart-header {
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
   }
 
   .headline-value {
-    margin-top: 0.5rem;
+    margin-top: 0.35rem;
   }
 
   .eyebrow {
@@ -64,43 +70,73 @@
     text-transform: uppercase;
   }
 
-  .legend-block {
-    display: grid;
-    gap: 1rem;
-    min-width: min(100%, 16rem);
+  .headline {
+    max-width: 32rem;
+    padding-top: 0.15rem;
   }
 
-  .legend-item {
-    text-align: left;
-  }
-
-  .legend-label {
-    align-items: center;
-    display: inline-flex;
-    font-size: 0.85rem;
-    font-weight: 600;
-    gap: 0.5rem;
-    margin-bottom: 0.25rem;
-  }
-
-  .legend-label::before {
-    border-radius: 999px;
-    content: '';
-    display: inline-block;
-    height: 0.6rem;
-    width: 0.6rem;
-  }
-
-  .value-line::before {
-    background: rgb(var(--primary));
-  }
-
-  .contribution-line::before {
-    background: rgb(var(--secondary));
+  .chart-surface {
+    background: linear-gradient(
+      180deg,
+      rgba(var(--dark-primary-text), 0.02) 0%,
+      rgba(var(--dark-primary-text), 0.01) 100%
+    );
+    border: 1px solid rgba(var(--dark-primary-text), 0.06);
+    border-radius: 1rem;
+    padding: 0.5rem 0.75rem 0.25rem;
   }
 
   .performance-panel {
+    margin-bottom: 1rem;
     min-height: 12rem;
+  }
+
+  .performance-card {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    justify-content: flex-start;
+    min-height: 100%;
+    padding-top: 0.9rem;
+  }
+
+  .performance-primary {
+    font-size: clamp(1.4rem, 2.7vw, 2.45rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    margin-bottom: 0.15rem;
+    min-height: 2.6rem;
+    text-align: center;
+  }
+
+  .performance-secondary {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 0.25rem;
+  }
+
+  .performance-stat {
+    background: rgba(var(--dark-primary-text), 0.03);
+    border: 1px solid rgba(var(--dark-primary-text), 0.08);
+    border-radius: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    justify-content: center;
+    min-height: 6rem;
+    padding: 1.1rem 1.15rem;
+  }
+
+  .performance-stat-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
   }
 
   .introduction {
@@ -109,11 +145,20 @@
 
   @media (max-width: 991.98px) {
     .overview-panel {
+      border-radius: 1rem;
       padding: 1.25rem;
     }
 
     .chart-header {
       margin-bottom: 1rem;
+    }
+
+    .legend-block {
+      min-width: 100%;
+    }
+
+    .performance-secondary {
+      grid-template-columns: 1fr;
     }
   }
 }

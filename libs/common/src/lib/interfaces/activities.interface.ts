@@ -11,6 +11,8 @@ export interface Activity extends Order {
   SymbolProfile: EnhancedSymbolProfile;
   tagIds?: string[];
   tags?: Tag[];
+  totalGain?: number;
+  totalGainPercent?: number;
   unitPriceInAssetProfileCurrency: number;
   updateAccountBalance?: boolean;
   value: number;

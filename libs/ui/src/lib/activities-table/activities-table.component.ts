@@ -161,8 +161,8 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
       'date',
       'quantity',
       'unitPrice',
-      'fee',
       'value',
+      'totalGain',
       'currency',
       'valueInBaseCurrency',
       'account',
@@ -341,6 +341,43 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
 
   public onImportDividends() {
     this.importDividends.emit();
+  }
+
+  public hasTotalGain(activity: Activity) {
+    return (
+      typeof activity?.totalGain === 'number' &&
+      typeof activity?.totalGainPercent === 'number'
+    );
+  }
+
+  public isPositiveTotalGain(activity: Activity) {
+    return (activity?.totalGain ?? 0) >= 0;
+  }
+
+  public getTotalGainDirection(activity: Activity) {
+    return this.isPositiveTotalGain(activity) ? 'up' : 'down';
+  }
+
+  public formatTotalGainValue(value: number | undefined) {
+    if (typeof value !== 'number') {
+      return '';
+    }
+
+    return Math.abs(value).toLocaleString(this.locale, {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    });
+  }
+
+  public formatTotalGainPercent(value: number | undefined) {
+    if (typeof value !== 'number') {
+      return '';
+    }
+
+    return Math.abs(value * 100).toLocaleString(this.locale, {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    });
   }
 
   public onOpenComment(aComment: string) {

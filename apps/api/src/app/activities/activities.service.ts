@@ -686,6 +686,10 @@ export class ActivitiesService {
       assetProfileIdentifiers
     );
 
+    const quotesBySymbol = await this.dataProviderService.getQuotes({
+      items: assetProfileIdentifiers
+    });
+
     const activities = await Promise.all(
       orders.map(async (order) => {
         const assetProfile = assetProfiles.find(({ dataSource, symbol }) => {
@@ -729,11 +733,30 @@ export class ActivitiesService {
           )
         ]);
 
+        let totalGain: number;
+        let totalGainPercent: number;
+
+        const currentMarketPrice =
+          quotesBySymbol[order.SymbolProfile.symbol]?.marketPrice;
+
+        if (order.type === ActivityType.BUY && currentMarketPrice >= 0) {
+          const currentValue = await this.exchangeRateDataService.toCurrency(
+            new Big(order.quantity).mul(currentMarketPrice).toNumber(),
+            order.SymbolProfile.currency,
+            order.currency ?? order.SymbolProfile.currency
+          );
+
+          totalGain = currentValue - value;
+          totalGainPercent = value === 0 ? 0 : totalGain / value;
+        }
+
         return {
           ...order,
           feeInAssetProfileCurrency,
           feeInBaseCurrency,
           unitPriceInAssetProfileCurrency,
+          totalGain,
+          totalGainPercent,
           value,
           valueInBaseCurrency,
           SymbolProfile: assetProfile

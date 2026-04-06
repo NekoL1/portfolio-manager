@@ -1,4 +1,3 @@
-import { GfPortfolioPerformanceComponent } from '@ghostfolio/client/components/portfolio-performance/portfolio-performance.component';
 import { LayoutService } from '@ghostfolio/client/core/layout.service';
 import { ImpersonationStorageService } from '@ghostfolio/client/services/impersonation-storage.service';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
@@ -34,7 +33,6 @@ import { forkJoin } from 'rxjs';
   imports: [
     CommonModule,
     GfLineChartComponent,
-    GfPortfolioPerformanceComponent,
     GfValueComponent,
     MatButtonModule,
     RouterModule
@@ -185,5 +183,9 @@ export class GfHomeOverviewComponent implements OnInit {
     }
 
     return Array.from(errorMap.values());
+  }
+
+  public isPositivePerformance(performance: PortfolioPerformance) {
+    return (performance?.netPerformancePercentageWithCurrencyEffect ?? 0) >= 0;
   }
 }

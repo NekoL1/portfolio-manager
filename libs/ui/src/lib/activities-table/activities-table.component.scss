@@ -1,3 +1,63 @@
 :host {
   display: block;
+
+  .total-gain-cell {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.75rem;
+    min-width: 13rem;
+    justify-content: flex-end;
+    white-space: nowrap;
+    width: 100%;
+  }
+
+  .total-gain-amount {
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .total-gain-amount--negative {
+    color: var(--danger);
+  }
+
+  .total-gain-amount--positive {
+    color: var(--success);
+  }
+
+  .total-gain-badge {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    gap: 0.35rem;
+    min-width: 5.9rem;
+    justify-content: center;
+    padding: 0.45rem 0.8rem;
+  }
+
+  .total-gain-badge__icon {
+    line-height: 1;
+  }
+
+  .total-gain-badge--negative {
+    background: rgba(var(--danger), 0.12);
+    color: var(--danger);
+  }
+
+  .total-gain-badge--positive {
+    background: rgba(var(--success), 0.12);
+    color: var(--success);
+  }
+
+  ::ng-deep th.mat-mdc-header-cell.text-center .mat-sort-header-container {
+    justify-content: center;
+  }
+
+  ::ng-deep td.mat-mdc-cell.text-center gf-activity-type {
+    display: flex;
+    justify-content: center;
+  }
 }

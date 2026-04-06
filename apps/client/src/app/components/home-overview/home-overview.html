@@ -89,24 +89,75 @@
                 />
               </div>
             </div>
-            <div class="legend-block">
-              <div class="legend-item">
-                <div class="legend-label value-line" i18n>Portfolio value</div>
+          </div>
+
+          <div class="chart-surface">
+            <div class="chart-container position-relative">
+              <gf-line-chart
+                class="position-absolute"
+                [benchmarkDataItems]="contributionDataItems"
+                [benchmarkLabel]="contributionLabel"
+                [colorScheme]="user?.settings?.colorScheme"
+                [currency]="showDetails ? user?.settings?.baseCurrency : ''"
+                [hidden]="historicalDataItems?.length === 0"
+                [historicalDataItems]="historicalDataItems"
+                [isAnimated]="user?.settings?.dateRange === '1d' ? false : true"
+                [label]="performanceLabel"
+                [locale]="user?.settings?.locale"
+                [ngClass]="{ 'pr-3': deviceType === 'mobile' }"
+                [showGradient]="true"
+                [showLoader]="false"
+                [showXAxis]="false"
+                [showYAxis]="false"
+              />
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="overview-cards row gx-4 gy-4 mt-4 w-100">
+      <div class="col-12 col-lg-6">
+        <section class="overview-panel performance-panel h-100">
+          <div class="eyebrow text-muted" i18n>Portfolio Return (TWR)</div>
+          <div class="performance-card">
+            <div
+              class="performance-primary"
+              [ngClass]="{
+                'text-success': isPositivePerformance(twrPerformance),
+                'text-danger': !isPositivePerformance(twrPerformance)
+              }"
+            >
+              <gf-value
+                [isPercent]="true"
+                [locale]="user?.settings?.locale"
+                [value]="
+                  isLoadingPerformance
+                    ? undefined
+                    : twrPerformance?.netPerformancePercentageWithCurrencyEffect
+                "
+              />
+            </div>
+            <div class="performance-secondary">
+              <div class="performance-stat">
+                <div class="performance-stat-label text-muted" i18n>
+                  Gain / Loss
+                </div>
                 <gf-value
+                  [colorizeSign]="true"
                   [isCurrency]="true"
                   [locale]="user?.settings?.locale"
-                  [precision]="precision"
                   [unit]="showDetails ? user?.settings?.baseCurrency : ''"
                   [value]="
-                    showDetails
-                      ? twrPerformance?.currentValueInBaseCurrency
-                      : undefined
+                    isLoadingPerformance
+                      ? undefined
+                      : twrPerformance?.netPerformanceWithCurrencyEffect
                   "
                 />
               </div>
-              <div class="legend-item">
-                <div class="legend-label contribution-line" i18n>
-                  Contributions
+              <div class="performance-stat">
+                <div class="performance-stat-label text-muted" i18n>
+                  Current Value
                 </div>
                 <gf-value
                   [isCurrency]="true"
@@ -114,73 +165,72 @@
                   [precision]="precision"
                   [unit]="showDetails ? user?.settings?.baseCurrency : ''"
                   [value]="
-                    showDetails
-                      ? twrPerformance?.totalInvestmentValueWithCurrencyEffect
-                      : undefined
+                    isLoadingPerformance
+                      ? undefined
+                      : twrPerformance?.currentValueInBaseCurrency
                   "
                 />
               </div>
             </div>
           </div>
-
-          <div class="chart-container position-relative">
-            <gf-line-chart
-              class="position-absolute"
-              [benchmarkDataItems]="contributionDataItems"
-              [benchmarkLabel]="contributionLabel"
-              [colorScheme]="user?.settings?.colorScheme"
-              [currency]="showDetails ? user?.settings?.baseCurrency : ''"
-              [hidden]="historicalDataItems?.length === 0"
-              [historicalDataItems]="historicalDataItems"
-              [isAnimated]="user?.settings?.dateRange === '1d' ? false : true"
-              [label]="performanceLabel"
-              [locale]="user?.settings?.locale"
-              [ngClass]="{ 'pr-3': deviceType === 'mobile' }"
-              [showGradient]="true"
-              [showLoader]="false"
-              [showXAxis]="false"
-              [showYAxis]="false"
-            />
-          </div>
-        </section>
-      </div>
-    </div>
-
-    <div class="overview-cards row mt-4 w-100">
-      <div class="col-12 col-lg-6 mb-3 mb-lg-0">
-        <section class="overview-panel performance-panel h-100">
-          <div class="eyebrow text-muted" i18n>Portfolio Return (TWR)</div>
-          <gf-portfolio-performance
-            class="pb-2 pt-2"
-            [deviceType]="deviceType"
-            [errors]="errors"
-            [isAllTimeHigh]="isAllTimeHigh"
-            [isAllTimeLow]="isAllTimeLow"
-            [isLoading]="isLoadingPerformance"
-            [locale]="user?.settings?.locale"
-            [performance]="twrPerformance"
-            [precision]="precision"
-            [showDetails]="showDetails"
-            [unit]="unit"
-          />
         </section>
       </div>
       <div class="col-12 col-lg-6">
         <section class="overview-panel performance-panel h-100">
           <div class="eyebrow text-muted" i18n>Your Return (MWR)</div>
-          <gf-portfolio-performance
-            class="pb-2 pt-2"
-            [deviceType]="deviceType"
-            [errors]="errors"
-            [isAllTimeHigh]="isAllTimeHigh"
-            [isAllTimeLow]="isAllTimeLow"
-            [isLoading]="isLoadingPerformance"
-            [locale]="user?.settings?.locale"
-            [performance]="mwrPerformance"
-            [precision]="precision"
-            [showDetails]="showDetails"
-            [unit]="unit"
-          />
+          <div class="performance-card">
+            <div
+              class="performance-primary"
+              [ngClass]="{
+                'text-success': isPositivePerformance(mwrPerformance),
+                'text-danger': !isPositivePerformance(mwrPerformance)
+              }"
+            >
+              <gf-value
+                [isPercent]="true"
+                [locale]="user?.settings?.locale"
+                [value]="
+                  isLoadingPerformance
+                    ? undefined
+                    : mwrPerformance?.netPerformancePercentageWithCurrencyEffect
+                "
+              />
+            </div>
+            <div class="performance-secondary">
+              <div class="performance-stat">
+                <div class="performance-stat-label text-muted" i18n>
+                  Gain / Loss
+                </div>
+                <gf-value
+                  [colorizeSign]="true"
+                  [isCurrency]="true"
+                  [locale]="user?.settings?.locale"
+                  [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                  [value]="
+                    isLoadingPerformance
+                      ? undefined
+                      : mwrPerformance?.netPerformanceWithCurrencyEffect
+                  "
+                />
+              </div>
+              <div class="performance-stat">
+                <div class="performance-stat-label text-muted" i18n>
+                  Current Value
+                </div>
+                <gf-value
+                  [isCurrency]="true"
+                  [locale]="user?.settings?.locale"
+                  [precision]="precision"
+                  [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                  [value]="
+                    isLoadingPerformance
+                      ? undefined
+                      : mwrPerformance?.currentValueInBaseCurrency
+                  "
+                />
+              </div>
+            </div>
+          </div>
         </section>
       </div>
     </div>

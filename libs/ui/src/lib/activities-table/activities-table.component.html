@@ -183,10 +183,15 @@
     </ng-container>
 
     <ng-container matColumnDef="type">
-      <th *matHeaderCellDef class="px-1" mat-header-cell mat-sort-header>
+      <th
+        *matHeaderCellDef
+        class="px-1 text-center"
+        mat-header-cell
+        mat-sort-header
+      >
         <ng-container i18n>Type</ng-container>
       </th>
-      <td *matCellDef="let element" class="px-1" mat-cell>
+      <td *matCellDef="let element" class="px-1 text-center" mat-cell>
         <gf-activity-type [activityType]="element.type" />
       </td>
     </ng-container>
@@ -284,6 +289,7 @@
         *matHeaderCellDef
         class="d-none d-lg-table-cell px-1 text-right"
         mat-header-cell
+        mat-sort-header="value"
       >
         <ng-container i18n>Value</ng-container>
       </th>
@@ -299,6 +305,53 @@
             [value]="isLoading() ? undefined : element.value"
           />
         </div>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="totalGain">
+      <th
+        *matHeaderCellDef
+        class="d-none d-lg-table-cell px-1 text-right"
+        mat-header-cell
+      >
+        <ng-container i18n>Total Gain</ng-container>
+      </th>
+      <td
+        *matCellDef="let element"
+        class="d-none d-lg-table-cell px-1"
+        mat-cell
+      >
+        @if (hasTotalGain(element)) {
+          <div class="total-gain-cell">
+            <span
+              class="total-gain-amount"
+              [ngClass]="{
+                'total-gain-amount--negative': !isPositiveTotalGain(element),
+                'total-gain-amount--positive': isPositiveTotalGain(element)
+              }"
+            >
+              {{ isPositiveTotalGain(element) ? '+' : '-' }}${{
+                formatTotalGainValue(element.totalGain)
+              }}
+            </span>
+            <span
+              class="total-gain-badge"
+              [ngClass]="{
+                'total-gain-badge--negative': !isPositiveTotalGain(element),
+                'total-gain-badge--positive': isPositiveTotalGain(element)
+              }"
+            >
+              <span class="total-gain-badge__icon">
+                {{ getTotalGainDirection(element) === 'up' ? '↑' : '↓' }}
+              </span>
+              <span
+                >{{ formatTotalGainPercent(element.totalGainPercent) }}%</span
+              >
+            </span>
+          </div>
+        } @else {
+          <div class="d-flex justify-content-end text-muted">-</div>
+        }
       </td>
     </ng-container>
 
@@ -320,6 +373,7 @@
         *matHeaderCellDef
         class="d-lg-none d-xl-none px-1 text-right"
         mat-header-cell
+        mat-sort-header="value"
       >
         <ng-container i18n>Value</ng-container>
       </th>

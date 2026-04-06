@@ -1,3 +1,7 @@
 :host {
   display: block;
 }
+
+.activities-page-container {
+  max-width: min(1680px, calc(100vw - 1.5rem));
+}
