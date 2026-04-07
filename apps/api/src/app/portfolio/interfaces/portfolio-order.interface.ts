@@ -2,6 +2,7 @@ import { Activity } from '@ghostfolio/common/interfaces';
 
 export interface PortfolioOrder extends Pick<Activity, 'tags' | 'type'> {
   date: string;
+  dateTime?: string;
   fee: Big;
   feeInBaseCurrency: Big;
   quantity: Big;

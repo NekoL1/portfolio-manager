@@ -130,6 +130,8 @@ export abstract class PortfolioCalculator {
           type,
           unitPriceInAssetProfileCurrency
         }) => {
+          let effectiveDate = date;
+
           if (isBefore(date, dateOfFirstActivity)) {
             dateOfFirstActivity = date;
           }
@@ -137,14 +139,15 @@ export abstract class PortfolioCalculator {
           if (isAfter(date, new Date())) {
             // Adapt date to today if activity is in future (e.g. liability)
             // to include it in the interval
-            date = endOfDay(new Date());
+            effectiveDate = endOfDay(new Date());
           }
 
           return {
             SymbolProfile,
             tags,
             type,
-            date: format(date, DATE_FORMAT),
+            date: format(effectiveDate, DATE_FORMAT),
+            dateTime: effectiveDate.toISOString(),
             fee: new Big(feeInAssetProfileCurrency),
             feeInBaseCurrency: new Big(feeInBaseCurrency),
             quantity: new Big(quantity),
@@ -812,13 +815,23 @@ export abstract class PortfolioCalculator {
     });
   }
 
-  protected async getPortfolioCashFlowsByDate({
+  protected async getHistoricalDataPointBefore({ date }: { date: Date }) {
+    await this.snapshotPromise;
+
+    return this.snapshot.historicalData
+      .filter(({ date: historicalDateString }) => {
+        return isBefore(resetHours(parseDate(historicalDateString)), date);
+      })
+      .at(-1);
+  }
+
+  protected async getPortfolioCashFlows({
     end,
     start
   }: {
     end: Date;
     start: Date;
-  }): Promise<Record<string, number>> {
+  }): Promise<DatedCashFlow[]> {
     const currencies = Array.from(
       new Set(
         this.activities
@@ -837,10 +850,10 @@ export abstract class PortfolioCalculator {
         targetCurrency: this.currency
       });
 
-    const cashFlowsByDate: Record<string, number> = {};
+    const cashFlows: DatedCashFlow[] = [];
 
     for (const activity of this.activities) {
-      const activityDate = resetHours(parseDate(activity.date));
+      const activityDate = parseDate(activity.date);
 
       if (isBefore(activityDate, start) || isAfter(activityDate, end)) {
         continue;
@@ -872,34 +885,60 @@ export abstract class PortfolioCalculator {
           break;
       }
 
-      cashFlowsByDate[activity.date] =
-        (cashFlowsByDate[activity.date] ?? 0) + cashFlow;
+      if (Math.abs(cashFlow) > Number.EPSILON) {
+        cashFlows.push({
+          amount: cashFlow,
+          date: activity.dateTime
+        });
+      }
+    }
+
+    return cashFlows.sort(({ date: leftDate }, { date: rightDate }) => {
+      return leftDate.localeCompare(rightDate);
+    });
+  }
+
+  protected async getPortfolioCashFlowsByDate({
+    end,
+    start
+  }: {
+    end: Date;
+    start: Date;
+  }): Promise<Record<string, number>> {
+    const cashFlows = await this.getPortfolioCashFlows({ end, start });
+    const cashFlowsByDate: Record<string, number> = {};
+
+    for (const { amount, date } of cashFlows) {
+      const dateKey = format(parseDate(date), DATE_FORMAT);
+      cashFlowsByDate[dateKey] = (cashFlowsByDate[dateKey] ?? 0) + amount;
     }
 
     return cashFlowsByDate;
   }
 
   protected getDatedCashFlows({
-    cashFlowsByDate,
-    endDateString,
-    startDateString
+    cashFlows,
+    endDate,
+    startDate
   }: {
-    cashFlowsByDate: Record<string, number>;
-    endDateString: string;
-    startDateString: string;
+    cashFlows: DatedCashFlow[];
+    endDate: Date;
+    startDate: Date;
   }): DatedCashFlow[] {
-    return Object.entries(cashFlowsByDate)
-      .filter(([date, amount]) => {
+    return cashFlows
+      .filter(({ amount, date }) => {
+        const cashFlowDate = parseDate(date);
+
         return (
           Math.abs(amount) > Number.EPSILON &&
-          date > startDateString &&
-          date <= endDateString
+          isAfter(cashFlowDate, startDate) &&
+          !isAfter(cashFlowDate, endDate)
         );
       })
-      .sort(([leftDate], [rightDate]) => {
+      .sort(({ date: leftDate }, { date: rightDate }) => {
         return leftDate.localeCompare(rightDate);
       })
-      .map(([date, amount]) => {
+      .map(({ amount, date }) => {
         return { amount, date };
       });
   }

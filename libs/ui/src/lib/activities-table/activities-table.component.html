@@ -215,7 +215,7 @@
     <ng-container matColumnDef="quantity">
       <th
         *matHeaderCellDef
-        class="d-none d-lg-table-cell justify-content-end px-1"
+        class="d-none d-lg-table-cell px-1"
         mat-header-cell
         mat-sort-header
       >
@@ -226,7 +226,7 @@
         class="d-none d-lg-table-cell px-1"
         mat-cell
       >
-        <div class="d-flex justify-content-end">
+        <div class="d-flex">
           <gf-value
             [isCurrency]="true"
             [locale]="locale"
@@ -239,7 +239,7 @@
     <ng-container matColumnDef="unitPrice">
       <th
         *matHeaderCellDef
-        class="d-none d-lg-table-cell justify-content-end px-1"
+        class="d-none d-lg-table-cell px-1"
         mat-header-cell
         mat-sort-header
       >
@@ -250,7 +250,7 @@
         class="d-none d-lg-table-cell px-1"
         mat-cell
       >
-        <div class="d-flex justify-content-end">
+        <div class="d-flex">
           <gf-value
             [isCurrency]="true"
             [locale]="locale"
@@ -287,7 +287,7 @@
     <ng-container matColumnDef="value">
       <th
         *matHeaderCellDef
-        class="d-none d-lg-table-cell px-1 text-right"
+        class="d-none d-lg-table-cell px-1"
         mat-header-cell
         mat-sort-header="value"
       >
@@ -298,7 +298,7 @@
         class="d-none d-lg-table-cell px-1"
         mat-cell
       >
-        <div class="d-flex justify-content-end">
+        <div class="d-flex">
           <gf-value
             [isCurrency]="true"
             [locale]="locale"
@@ -309,11 +309,7 @@
     </ng-container>
 
     <ng-container matColumnDef="totalGain">
-      <th
-        *matHeaderCellDef
-        class="d-none d-lg-table-cell px-1 text-right"
-        mat-header-cell
-      >
+      <th *matHeaderCellDef class="d-none d-lg-table-cell px-1" mat-header-cell>
         <ng-container i18n>Total Gain</ng-container>
       </th>
       <td
@@ -350,7 +346,7 @@
             </span>
           </div>
         } @else {
-          <div class="d-flex justify-content-end text-muted">-</div>
+          <div class="d-flex text-muted">-</div>
         }
       </td>
     </ng-container>

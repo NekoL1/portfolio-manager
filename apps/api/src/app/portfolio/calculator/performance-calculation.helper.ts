@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { differenceInMilliseconds, parseISO } from 'date-fns';
 
 export interface DateValuePoint {
   date: string;
@@ -17,19 +17,70 @@ const TOLERANCE = 1e-10;
 function getRemainingPeriodFraction({
   date,
   endDate,
-  totalDays
+  totalDurationInMilliseconds
 }: {
   date: string;
   endDate: Date;
-  totalDays: number;
+  totalDurationInMilliseconds: number;
 }) {
-  if (totalDays <= 0) {
+  if (totalDurationInMilliseconds <= 0) {
     return 0;
   }
 
-  const remainingDays = differenceInCalendarDays(endDate, parseISO(date));
+  const remainingDurationInMilliseconds = differenceInMilliseconds(
+    endDate,
+    parseISO(date)
+  );
 
-  return Math.max(0, Math.min(1, remainingDays / totalDays));
+  return Math.max(
+    0,
+    Math.min(1, remainingDurationInMilliseconds / totalDurationInMilliseconds)
+  );
+}
+
+export function calculateModifiedDietzReturn({
+  cashFlows,
+  endDate,
+  endValue,
+  startDate,
+  startValue
+}: {
+  cashFlows: DatedCashFlow[];
+  endDate: Date;
+  endValue: number;
+  startDate: Date;
+  startValue: number;
+}) {
+  const totalDurationInMilliseconds = Math.max(
+    differenceInMilliseconds(endDate, startDate),
+    1
+  );
+
+  const weightedCashFlows = cashFlows.reduce((total, cashFlow) => {
+    return (
+      total +
+      cashFlow.amount *
+        getRemainingPeriodFraction({
+          date: cashFlow.date,
+          endDate,
+          totalDurationInMilliseconds
+        })
+    );
+  }, 0);
+
+  const denominator = startValue + weightedCashFlows;
+
+  if (Math.abs(denominator) < TOLERANCE) {
+    return 0;
+  }
+
+  return (
+    getNetPerformance({
+      cashFlows,
+      endValue,
+      startValue
+    }) / denominator
+  );
 }
 
 export function calculateMoneyWeightedReturn({
@@ -45,7 +96,10 @@ export function calculateMoneyWeightedReturn({
   startDate: Date;
   startValue: number;
 }) {
-  const totalDays = Math.max(differenceInCalendarDays(endDate, startDate), 1);
+  const totalDurationInMilliseconds = Math.max(
+    differenceInMilliseconds(endDate, startDate),
+    1
+  );
 
   const evaluate = (rate: number) => {
     const growthFactor = 1 + rate;
@@ -63,7 +117,7 @@ export function calculateMoneyWeightedReturn({
           getRemainingPeriodFraction({
             date: cashFlow.date,
             endDate,
-            totalDays
+            totalDurationInMilliseconds
           });
     }
 
@@ -87,7 +141,13 @@ export function calculateMoneyWeightedReturn({
   }
 
   if (lowerValue * upperValue > 0) {
-    return 0;
+    return calculateModifiedDietzReturn({
+      cashFlows,
+      endDate,
+      endValue,
+      startDate,
+      startValue
+    });
   }
 
   for (let index = 0; index < MAX_ITERATIONS; index++) {

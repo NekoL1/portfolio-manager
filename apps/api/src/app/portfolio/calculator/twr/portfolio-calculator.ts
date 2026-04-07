@@ -1,6 +1,8 @@
 import { RoaiPortfolioCalculator } from '@ghostfolio/api/app/portfolio/calculator/roai/portfolio-calculator';
 import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 
+import { endOfDay, parseISO } from 'date-fns';
+
 import {
   calculateTimeWeightedReturn,
   getNetPerformance
@@ -21,24 +23,36 @@ export class TwrPortfolioCalculator extends RoaiPortfolioCalculator {
       return { chart: [] };
     }
 
+    const baselinePoint = await this.getHistoricalDataPointBefore({
+      date: start
+    });
     const cashFlowsByDate = await this.getPortfolioCashFlowsByDate({
       end,
-      start
+      start: baselinePoint ? parseISO(baselinePoint.date) : start
     });
-    const startDateString = historicalData[0].date;
+    const rangeStartPoint = baselinePoint ?? historicalData[0];
+    const performancePoints = baselinePoint
+      ? [baselinePoint, ...historicalData]
+      : historicalData;
+    const cashFlows = await this.getPortfolioCashFlows({
+      end,
+      start: baselinePoint ? parseISO(baselinePoint.date) : start
+    });
+    const startBoundary = endOfDay(parseISO(rangeStartPoint.date));
 
-    const chart = historicalData.map((historicalDataItem, index) => {
-      const chartSlice = historicalData.slice(0, index + 1);
-      const endDateString = historicalDataItem.date;
+    const chart = historicalData.map((historicalDataItem) => {
+      const chartSlice = performancePoints.filter(({ date }) => {
+        return date <= historicalDataItem.date;
+      });
       const datedCashFlows = this.getDatedCashFlows({
-        cashFlowsByDate,
-        endDateString,
-        startDateString
+        cashFlows,
+        endDate: endOfDay(parseISO(historicalDataItem.date)),
+        startDate: startBoundary
       });
       const netPerformanceWithCurrencyEffect = getNetPerformance({
         cashFlows: datedCashFlows,
         endValue: historicalDataItem.valueWithCurrencyEffect,
-        startValue: historicalData[0].valueWithCurrencyEffect
+        startValue: rangeStartPoint.valueWithCurrencyEffect
       });
       const timeWeightedReturn = calculateTimeWeightedReturn({
         cashFlowsByDate,

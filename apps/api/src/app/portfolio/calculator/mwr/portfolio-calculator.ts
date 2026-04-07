@@ -1,6 +1,7 @@
 import { RoaiPortfolioCalculator } from '@ghostfolio/api/app/portfolio/calculator/roai/portfolio-calculator';
-import { parseDate } from '@ghostfolio/common/helper';
 import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
+
+import { endOfDay, parseISO } from 'date-fns';
 
 import {
   calculateMoneyWeightedReturn,
@@ -22,31 +23,33 @@ export class MwrPortfolioCalculator extends RoaiPortfolioCalculator {
       return { chart: [] };
     }
 
-    const cashFlowsByDate = await this.getPortfolioCashFlowsByDate({
-      end,
-      start
+    const baselinePoint = await this.getHistoricalDataPointBefore({
+      date: start
     });
-    const startDateString = historicalData[0].date;
-    const rangeStartDate = parseDate(startDateString);
+    const rangeStartPoint = baselinePoint ?? historicalData[0];
+    const rangeStartDate = endOfDay(parseISO(rangeStartPoint.date));
+    const cashFlows = await this.getPortfolioCashFlows({
+      end,
+      start: baselinePoint ? parseISO(baselinePoint.date) : start
+    });
 
     const chart = historicalData.map((historicalDataItem) => {
-      const endDateString = historicalDataItem.date;
       const datedCashFlows = this.getDatedCashFlows({
-        cashFlowsByDate,
-        endDateString,
-        startDateString
+        cashFlows,
+        endDate: endOfDay(parseISO(historicalDataItem.date)),
+        startDate: rangeStartDate
       });
       const netPerformanceWithCurrencyEffect = getNetPerformance({
         cashFlows: datedCashFlows,
         endValue: historicalDataItem.valueWithCurrencyEffect,
-        startValue: historicalData[0].valueWithCurrencyEffect
+        startValue: rangeStartPoint.valueWithCurrencyEffect
       });
       const moneyWeightedReturn = calculateMoneyWeightedReturn({
         cashFlows: datedCashFlows,
-        endDate: parseDate(endDateString),
+        endDate: endOfDay(parseISO(historicalDataItem.date)),
         endValue: historicalDataItem.valueWithCurrencyEffect,
         startDate: rangeStartDate,
-        startValue: historicalData[0].valueWithCurrencyEffect
+        startValue: rangeStartPoint.valueWithCurrencyEffect
       });
 
       return {
