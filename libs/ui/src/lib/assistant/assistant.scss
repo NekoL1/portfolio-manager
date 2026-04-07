@@ -3,6 +3,8 @@
 
   .date-range-selector-container {
     border-bottom: 1px solid rgba(var(--dark-dividers));
+    display: grid;
+    gap: 0.75rem;
   }
 
   .result-container {

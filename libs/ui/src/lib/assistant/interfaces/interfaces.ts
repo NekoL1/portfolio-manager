@@ -1,4 +1,4 @@
-import { AssetProfileIdentifier } from '@ghostfolio/common/interfaces';
+import { AssetProfileIdentifier, Filter } from '@ghostfolio/common/interfaces';
 import { AccountWithValue, DateRange } from '@ghostfolio/common/types';
 
 import { SearchMode } from '../enums/search-mode';
@@ -39,4 +39,9 @@ export interface SearchResults {
   assetProfiles: SearchResultItem[];
   holdings: SearchResultItem[];
   quickLinks: SearchResultItem[];
+}
+
+export interface AssistantPortfolioSettingsChange {
+  baseCurrency: string | null;
+  filters: Filter[];
 }

@@ -9,11 +9,12 @@ import {
 import { TokenStorageService } from '@ghostfolio/client/services/token-storage.service';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
 import { UpdateUserSettingDto } from '@ghostfolio/common/dtos';
-import { Filter, InfoItem, User } from '@ghostfolio/common/interfaces';
+import { InfoItem, User } from '@ghostfolio/common/interfaces';
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import { internalRoutes, publicRoutes } from '@ghostfolio/common/routes/routes';
 import { DateRange } from '@ghostfolio/common/types';
 import { GfAssistantComponent } from '@ghostfolio/ui/assistant/assistant.component';
+import { AssistantPortfolioSettingsChange } from '@ghostfolio/ui/assistant/interfaces/interfaces';
 import { GfLogoComponent } from '@ghostfolio/ui/logo';
 import { NotificationService } from '@ghostfolio/ui/notifications';
 import { GfPremiumIndicatorComponent } from '@ghostfolio/ui/premium-indicator';
@@ -114,6 +115,7 @@ export class GfHeaderComponent implements OnChanges {
   public hasPermissionToAccessAssistant: boolean;
   public hasPermissionToAccessFearAndGreedIndex: boolean;
   public hasPermissionToCreateUser: boolean;
+  public hasPermissionToUpdateUserSettings: boolean;
   public impersonationId: string;
   public internalRoutes = internalRoutes;
   public isMenuOpen: boolean;
@@ -206,6 +208,11 @@ export class GfHeaderComponent implements OnChanges {
       this.info?.globalPermissions,
       permissions.createUserAccount
     );
+
+    this.hasPermissionToUpdateUserSettings = hasPermission(
+      this.user?.permissions,
+      permissions.updateUserSettings
+    );
   }
 
   public closeAssistant() {
@@ -234,7 +241,10 @@ export class GfHeaderComponent implements OnChanges {
       });
   }
 
-  public onFiltersChanged(filters: Filter[]) {
+  public onPortfolioSettingsChanged({
+    baseCurrency,
+    filters
+  }: AssistantPortfolioSettingsChange) {
     const userSetting: UpdateUserSettingDto = {};
 
     for (const filter of filters) {
@@ -249,6 +259,10 @@ export class GfHeaderComponent implements OnChanges {
       } else if (filter.type === 'TAG') {
         userSetting['filters.tags'] = filter.id ? [filter.id] : null;
       }
+    }
+
+    if (baseCurrency) {
+      userSetting.baseCurrency = baseCurrency;
     }
 
     this.dataService

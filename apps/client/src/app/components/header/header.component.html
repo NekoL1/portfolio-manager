@@ -151,12 +151,16 @@
               [hasPermissionToAccessAdminControl]="
                 hasPermissionToAccessAdminControl
               "
+              [hasPermissionToChangeCurrency]="
+                hasPermissionToUpdateUserSettings
+              "
               [hasPermissionToChangeDateRange]="hasPermissionToChangeDateRange"
               [hasPermissionToChangeFilters]="hasPermissionToChangeFilters"
+              [info]="info"
               [user]="user"
               (closed)="closeAssistant()"
               (dateRangeChanged)="onDateRangeChange($event)"
-              (filtersChanged)="onFiltersChanged($event)"
+              (portfolioSettingsChanged)="onPortfolioSettingsChanged($event)"
             />
           </mat-menu>
         </li>

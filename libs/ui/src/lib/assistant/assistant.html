@@ -182,6 +182,14 @@
           }
         </mat-select>
       </mat-form-field>
+      <mat-form-field appearance="outline" class="mb-0 w-100 without-hint">
+        <mat-label i18n>Currency</mat-label>
+        <mat-select [formControl]="currencyFormControl">
+          @for (currency of currencies; track currency) {
+            <mat-option [value]="currency">{{ currency }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
     </div>
     <div class="p-3">
       <gf-portfolio-filter-form
@@ -197,7 +205,8 @@
           mat-button
           type="button"
           [disabled]="
-            !portfolioFilterForm.hasFilters() || portfolioFilterForm.disabled()
+            !hasResettableChanges(portfolioFilterForm) ||
+            portfolioFilterForm.disabled()
           "
           (click)="onResetFilters()"
         >
@@ -208,10 +217,7 @@
           color="primary"
           mat-flat-button
           type="button"
-          [disabled]="
-            !portfolioFilterForm.filterForm.dirty ||
-            portfolioFilterForm.disabled()
-          "
+          [disabled]="!hasPendingChanges(portfolioFilterForm)"
           (click)="onApplyFilters()"
         >
           <ng-container i18n>Apply Filters</ng-container>

@@ -1,5 +1,10 @@
 import { getAssetProfileIdentifier } from '@ghostfolio/common/helper';
-import { Filter, PortfolioPosition, User } from '@ghostfolio/common/interfaces';
+import {
+  Filter,
+  InfoItem,
+  PortfolioPosition,
+  User
+} from '@ghostfolio/common/interfaces';
 import { InternalRoute } from '@ghostfolio/common/routes/interfaces/internal-route.interface';
 import { internalRoutes } from '@ghostfolio/common/routes/routes';
 import { AccountWithPlatform, DateRange } from '@ghostfolio/common/types';
@@ -60,6 +65,7 @@ import { GfAssistantListItemComponent } from './assistant-list-item/assistant-li
 import { SearchMode } from './enums/search-mode';
 import {
   DateRangeOption,
+  AssistantPortfolioSettingsChange,
   SearchResultItem,
   SearchResults
 } from './interfaces/interfaces';
@@ -87,9 +93,11 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
   public static readonly SEARCH_RESULTS_DEFAULT_LIMIT = 5;
 
   @Input() deviceType: string;
+  @Input() info: InfoItem;
   @Input() hasPermissionToAccessAdminControl: boolean;
   @Input() hasPermissionToChangeDateRange: boolean;
   @Input() hasPermissionToChangeFilters: boolean;
+  @Input() hasPermissionToChangeCurrency: boolean;
   @Input() user: User;
 
   @ViewChild('menuTrigger') menuTriggerElement: MatMenuTrigger;
@@ -101,6 +109,8 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
 
   public accounts: AccountWithPlatform[] = [];
   public assetClasses: Filter[] = [];
+  public currencies: string[] = [];
+  public currencyFormControl = new FormControl<string | null>(null);
   public dateRangeFormControl = new FormControl<string | null>(null);
   public dateRangeOptions: DateRangeOption[] = [];
   public holdings: PortfolioPosition[] = [];
@@ -131,7 +141,8 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
 
   protected readonly closed = output<void>();
   protected readonly dateRangeChanged = output<DateRange>();
-  protected readonly filtersChanged = output<Filter[]>();
+  protected readonly portfolioSettingsChanged =
+    output<AssistantPortfolioSettingsChange>();
 
   private readonly PRESELECTION_DELAY = 100;
 
@@ -403,6 +414,23 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
 
     this.dateRangeFormControl.setValue(this.user?.settings?.dateRange ?? null);
 
+    this.currencies = [...(this.info?.currencies ?? [])].sort((a, b) => {
+      return a.localeCompare(b);
+    });
+
+    this.currencyFormControl.disable({ emitEvent: false });
+
+    if (this.hasPermissionToChangeCurrency) {
+      this.currencyFormControl.enable({ emitEvent: false });
+    }
+
+    this.currencyFormControl.setValue(
+      this.user?.settings?.baseCurrency ?? null,
+      {
+        emitEvent: false
+      }
+    );
+
     if (this.hasPermissionToChangeFilters) {
       this.portfolioFilterFormControl.enable({ emitEvent: false });
     } else {
@@ -475,8 +503,7 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
 
   public onApplyFilters() {
     const filterValue = this.portfolioFilterFormControl.value;
-
-    this.filtersChanged.emit([
+    const filters: Filter[] = [
       {
         id: filterValue?.account ?? '',
         type: 'ACCOUNT'
@@ -497,7 +524,12 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
         id: filterValue?.tag ?? '',
         type: 'TAG'
       }
-    ]);
+    ];
+
+    this.portfolioSettingsChanged.emit({
+      baseCurrency: this.currencyFormControl.value,
+      filters
+    });
 
     this.onCloseAssistant();
   }
@@ -507,25 +539,40 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
   }
 
   public onCloseAssistant() {
-    this.portfolioFilterFormControl.reset();
+    this.resetFormControls();
     this.setIsOpen(false);
 
     this.closed.emit();
   }
 
   public onResetFilters() {
-    this.portfolioFilterFormControl.reset();
+    this.resetFormControls();
 
-    this.filtersChanged.emit(
-      this.filterTypes.map((type) => {
+    this.portfolioSettingsChanged.emit({
+      baseCurrency: this.user?.settings?.baseCurrency ?? null,
+      filters: this.filterTypes.map((type) => {
         return {
           type,
           id: ''
         };
       })
-    );
+    });
 
     this.onCloseAssistant();
+  }
+
+  public hasPendingChanges(
+    portfolioFilterForm: GfPortfolioFilterFormComponent
+  ) {
+    return (
+      portfolioFilterForm.filterForm.dirty || this.hasBaseCurrencyChanged()
+    );
+  }
+
+  public hasResettableChanges(
+    portfolioFilterForm: GfPortfolioFilterFormComponent
+  ) {
+    return portfolioFilterForm.hasFilters() || this.hasBaseCurrencyChanged();
   }
 
   public setIsOpen(aIsOpen: boolean) {
@@ -748,5 +795,22 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
       holding: selectedHolding ?? null,
       tag: this.user?.settings?.['filters.tags']?.[0] ?? null
     });
+  }
+
+  private hasBaseCurrencyChanged() {
+    return (
+      this.currencyFormControl.value !==
+      (this.user?.settings?.baseCurrency ?? null)
+    );
+  }
+
+  private resetFormControls() {
+    this.portfolioFilterFormControl.reset();
+    this.currencyFormControl.setValue(
+      this.user?.settings?.baseCurrency ?? null,
+      {
+        emitEvent: false
+      }
+    );
   }
 }
