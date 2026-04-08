@@ -31,6 +31,7 @@ import { IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { gridOutline, reorderFourOutline } from 'ionicons/icons';
 import { DeviceDetectorService } from 'ngx-device-detector';
+import { Subscription } from 'rxjs';
 
 @Component({
   imports: [
@@ -52,6 +53,7 @@ import { DeviceDetectorService } from 'ngx-device-detector';
 })
 export class GfHomeHoldingsComponent implements OnInit {
   public static DEFAULT_HOLDINGS_VIEW_MODE: HoldingsViewMode = 'TABLE';
+  private static readonly HOLDINGS_STREAM_RECONNECT_DELAY_IN_MILLISECONDS = 5000;
 
   public deviceType: string;
   public hasImpersonationId: boolean;
@@ -70,6 +72,9 @@ export class GfHomeHoldingsComponent implements OnInit {
     GfHomeHoldingsComponent.DEFAULT_HOLDINGS_VIEW_MODE
   );
 
+  private holdingsStreamReconnectTimeout?: ReturnType<typeof setTimeout>;
+  private holdingsStreamSubscription?: Subscription;
+
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
     private dataService: DataService,
@@ -80,6 +85,10 @@ export class GfHomeHoldingsComponent implements OnInit {
     private userService: UserService
   ) {
     addIcons({ gridOutline, reorderFourOutline });
+
+    this.destroyRef.onDestroy(() => {
+      this.stopHoldingsStream();
+    });
   }
 
   public ngOnInit() {
@@ -148,19 +157,27 @@ export class GfHomeHoldingsComponent implements OnInit {
   }
 
   private fetchHoldings() {
+    return this.dataService.fetchPortfolioHoldings(
+      this.getHoldingsRequestParams()
+    );
+  }
+
+  private getHoldingsRequestParams() {
     const filters = this.userService.getFilters();
 
     if (this.holdingType === 'CLOSED') {
       filters.push({ id: 'CLOSED', type: 'HOLDING_TYPE' });
     }
 
-    return this.dataService.fetchPortfolioHoldings({
+    return {
       filters,
       range: this.user?.settings?.dateRange
-    });
+    };
   }
 
   private initialize() {
+    this.stopHoldingsStream();
+
     this.viewModeFormControl.disable({ emitEvent: false });
 
     if (
@@ -190,7 +207,38 @@ export class GfHomeHoldingsComponent implements OnInit {
       .subscribe(({ holdings }) => {
         this.holdings = holdings;
 
+        this.startHoldingsStream();
+
         this.changeDetectorRef.markForCheck();
       });
+  }
+
+  private startHoldingsStream() {
+    this.stopHoldingsStream();
+
+    this.holdingsStreamSubscription = this.dataService
+      .streamPortfolioHoldings(this.getHoldingsRequestParams())
+      .subscribe({
+        error: () => {
+          this.holdingsStreamReconnectTimeout = setTimeout(() => {
+            this.startHoldingsStream();
+          }, GfHomeHoldingsComponent.HOLDINGS_STREAM_RECONNECT_DELAY_IN_MILLISECONDS);
+        },
+        next: ({ holdings }) => {
+          this.holdings = holdings;
+
+          this.changeDetectorRef.markForCheck();
+        }
+      });
+  }
+
+  private stopHoldingsStream() {
+    this.holdingsStreamSubscription?.unsubscribe();
+    this.holdingsStreamSubscription = undefined;
+
+    if (this.holdingsStreamReconnectTimeout) {
+      clearTimeout(this.holdingsStreamReconnectTimeout);
+      this.holdingsStreamReconnectTimeout = undefined;
+    }
   }
 }

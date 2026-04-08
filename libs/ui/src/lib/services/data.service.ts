@@ -1,3 +1,10 @@
+import { ImpersonationStorageService } from '@ghostfolio/client/services/impersonation-storage.service';
+import { TokenStorageService } from '@ghostfolio/client/services/token-storage.service';
+import {
+  HEADER_KEY_IMPERSONATION,
+  HEADER_KEY_TIMEZONE,
+  HEADER_KEY_TOKEN
+} from '@ghostfolio/common/config';
 import {
   CreateAccessDto,
   CreateAccountBalanceDto,
@@ -48,6 +55,7 @@ import {
   PortfolioHoldingResponse,
   PortfolioHoldingsResponse,
   PortfolioInvestmentsResponse,
+  PortfolioPosition,
   PortfolioPerformanceResponse,
   PortfolioReportResponse,
   PublicPortfolioResponse,
@@ -90,6 +98,10 @@ import { map } from 'rxjs/operators';
 })
 export class DataService {
   private readonly http = inject(HttpClient);
+  private readonly impersonationStorageService = inject(
+    ImpersonationStorageService
+  );
+  private readonly tokenStorageService = inject(TokenStorageService);
 
   public buildFiltersAsQueryParams({ filters }: { filters?: Filter[] }) {
     let params = new HttpParams();
@@ -608,34 +620,104 @@ export class DataService {
         params
       })
       .pipe(
-        map((response) => {
-          if (response.holdings) {
-            for (const symbol of Object.keys(response.holdings)) {
-              response.holdings[symbol].assetClassLabel = translate(
-                response.holdings[symbol].assetClass
-              );
+        map((response) => this.normalizePortfolioHoldingsResponse(response))
+      );
+  }
 
-              response.holdings[symbol].assetSubClassLabel = translate(
-                response.holdings[symbol].assetSubClass
-              );
+  public streamPortfolioHoldings({
+    filters,
+    range
+  }: {
+    filters?: Filter[];
+    range?: DateRange;
+  } = {}) {
+    let params = this.buildFiltersAsQueryParams({ filters });
 
-              response.holdings[symbol].dateOfFirstActivity = response.holdings[
-                symbol
-              ].dateOfFirstActivity
-                ? parseISO(response.holdings[symbol].dateOfFirstActivity)
-                : undefined;
+    if (range) {
+      params = params.append('range', range);
+    }
 
-              response.holdings[symbol].value = isNumber(
-                response.holdings[symbol].value
-              )
-                ? response.holdings[symbol].value
-                : response.holdings[symbol].valueInPercentage;
+    const queryString = params.toString();
+    const url = queryString
+      ? `/api/v1/portfolio/holdings/stream?${queryString}`
+      : '/api/v1/portfolio/holdings/stream';
+
+    return new Observable<PortfolioHoldingsResponse>((observer) => {
+      const abortController = new AbortController();
+      const headers = new Headers();
+      const token = this.tokenStorageService.getToken();
+      const impersonationId = this.impersonationStorageService.getId();
+
+      headers.set(
+        HEADER_KEY_TIMEZONE,
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      );
+
+      if (token) {
+        headers.set(HEADER_KEY_TOKEN, `Bearer ${token}`);
+      }
+
+      if (impersonationId) {
+        headers.set(HEADER_KEY_IMPERSONATION, impersonationId);
+      }
+
+      void (async () => {
+        try {
+          const response = await fetch(url, {
+            headers,
+            signal: abortController.signal
+          });
+
+          if (!response.ok) {
+            throw new Error(`Unable to stream holdings (${response.status})`);
+          }
+
+          if (!response.body) {
+            throw new Error('Unable to read holdings stream');
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+
+            const rawEvents = buffer.split('\n\n');
+
+            buffer = rawEvents.pop() ?? '';
+
+            for (const rawEvent of rawEvents) {
+              const payload = this.parseSsePayload(rawEvent);
+
+              if (!payload) {
+                continue;
+              }
+
+              observer.next(this.normalizePortfolioHoldingsResponse(payload));
             }
           }
 
-          return response;
-        })
-      );
+          observer.complete();
+        } catch (error) {
+          if ((error as Error)?.name === 'AbortError') {
+            return;
+          }
+
+          observer.error(error);
+        }
+      })();
+
+      return () => {
+        abortController.abort();
+      };
+    });
   }
 
   public fetchPortfolioPerformance({
@@ -679,6 +761,51 @@ export class DataService {
           return response;
         })
       );
+  }
+
+  private normalizePortfolioHoldingsResponse(
+    response: PortfolioHoldingsResponse
+  ): PortfolioHoldingsResponse {
+    if (response.holdings) {
+      for (const holding of response.holdings) {
+        holding.assetClassLabel = holding.assetClass
+          ? translate(holding.assetClass)
+          : undefined;
+        holding.assetSubClassLabel = holding.assetSubClass
+          ? translate(holding.assetSubClass)
+          : undefined;
+
+        if (holding.dateOfFirstActivity) {
+          holding.dateOfFirstActivity = parseISO(
+            holding.dateOfFirstActivity as unknown as string
+          );
+        }
+
+        const holdingWithValue = holding as PortfolioPosition & {
+          value?: number;
+        };
+
+        holdingWithValue.value = isNumber(holdingWithValue.value)
+          ? holdingWithValue.value
+          : holding.valueInPercentage;
+      }
+    }
+
+    return response;
+  }
+
+  private parseSsePayload(rawEvent: string): PortfolioHoldingsResponse | null {
+    const dataLines = rawEvent
+      .replaceAll('\r\n', '\n')
+      .split('\n')
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice('data:'.length).trimStart());
+
+    if (dataLines.length === 0) {
+      return null;
+    }
+
+    return JSON.parse(dataLines.join('\n')) as PortfolioHoldingsResponse;
   }
 
   public fetchPortfolioReport() {

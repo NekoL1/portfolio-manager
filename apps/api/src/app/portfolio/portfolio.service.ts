@@ -820,14 +820,10 @@ export class PortfolioService {
       dividendInBaseCurrency,
       feeInBaseCurrency,
       grossPerformance,
-      grossPerformancePercentage,
-      grossPerformancePercentageWithCurrencyEffect,
       grossPerformanceWithCurrencyEffect,
       investmentWithCurrencyEffect,
       marketPrice,
       netPerformance,
-      netPerformancePercentage,
-      netPerformancePercentageWithCurrencyEffectMap,
       netPerformanceWithCurrencyEffectMap,
       quantity,
       tags,
@@ -871,18 +867,7 @@ export class PortfolioService {
     );
 
     const historicalDataArray: HistoricalDataItem[] = [];
-    let marketPriceMax = Math.max(
-      activitiesOfHolding[0].unitPriceInAssetProfileCurrency,
-      marketPrice
-    );
-    let marketPriceMaxDate =
-      marketPrice > activitiesOfHolding[0].unitPriceInAssetProfileCurrency
-        ? new Date()
-        : activitiesOfHolding[0].date;
-    let marketPriceMin = Math.min(
-      activitiesOfHolding[0].unitPriceInAssetProfileCurrency,
-      marketPrice
-    );
+    const snapshotMarketPrice = marketPrice;
 
     if (historicalData[symbol]) {
       let j = -1;
@@ -917,15 +902,6 @@ export class PortfolioService {
             historicalDataArray.length > 0 ? marketPrice : currentAveragePrice,
           quantity: currentQuantity
         });
-
-        if (marketPrice > marketPriceMax) {
-          marketPriceMax = marketPrice;
-          marketPriceMaxDate = parseISO(date);
-        }
-        marketPriceMin = Math.min(
-          marketPrice ?? Number.MAX_SAFE_INTEGER,
-          marketPriceMin
-        );
       }
     } else {
       // Add historical entry for buy date, if no historical data available
@@ -937,16 +913,100 @@ export class PortfolioService {
       });
     }
 
+    let currentMarketPrice = snapshotMarketPrice;
+
+    try {
+      const quotesBySymbol = await this.dataProviderService.getQuotes({
+        items: [{ dataSource, symbol }],
+        useCache: false,
+        user
+      });
+
+      if (quotesBySymbol[symbol]?.marketPrice > 0) {
+        currentMarketPrice = quotesBySymbol[symbol].marketPrice;
+      }
+    } catch {}
+
+    const todayString = format(new Date(), DATE_FORMAT);
+
+    if (currentMarketPrice > 0) {
+      const latestHistoricalPoint = historicalDataArray.at(-1);
+
+      if (latestHistoricalPoint?.date === todayString) {
+        latestHistoricalPoint.marketPrice = currentMarketPrice;
+        latestHistoricalPoint.quantity = quantity.toNumber();
+      } else {
+        historicalDataArray.push({
+          averagePrice:
+            latestHistoricalPoint?.averagePrice ?? averagePrice.toNumber(),
+          date: todayString,
+          marketPrice: currentMarketPrice,
+          quantity: quantity.toNumber()
+        });
+      }
+    }
+
+    let marketPriceMax = currentMarketPrice;
+    let marketPriceMaxDate = new Date();
+    let marketPriceMin = currentMarketPrice;
+
+    for (const historicalDataItem of historicalDataArray) {
+      if (
+        historicalDataItem.marketPrice === undefined ||
+        historicalDataItem.marketPrice === null
+      ) {
+        continue;
+      }
+
+      if (historicalDataItem.marketPrice > marketPriceMax) {
+        marketPriceMax = historicalDataItem.marketPrice;
+        marketPriceMaxDate = parseISO(historicalDataItem.date);
+      }
+
+      if (historicalDataItem.marketPrice < marketPriceMin) {
+        marketPriceMin = historicalDataItem.marketPrice;
+      }
+    }
+
+    const currentValue = this.exchangeRateDataService.toCurrency(
+      quantity.mul(currentMarketPrice ?? 0).toNumber(),
+      currency,
+      userCurrency
+    );
+    const snapshotValue = this.exchangeRateDataService.toCurrency(
+      quantity.mul(snapshotMarketPrice ?? 0).toNumber(),
+      currency,
+      userCurrency
+    );
+    const valueDifference = currentValue - snapshotValue;
+    const netPerformanceWithCurrencyEffect =
+      (netPerformanceWithCurrencyEffectMap?.['max']?.toNumber() ?? 0) +
+      valueDifference;
+    const grossPerformanceWithCurrencyEffectValue =
+      (grossPerformanceWithCurrencyEffect?.toNumber() ?? 0) + valueDifference;
+    const investmentInBaseCurrencyWithCurrencyEffect =
+      investmentWithCurrencyEffect?.toNumber() ?? 0;
+    const netPerformancePercentWithCurrencyEffect =
+      investmentWithCurrencyEffect?.gt(0)
+        ? netPerformanceWithCurrencyEffect /
+          investmentInBaseCurrencyWithCurrencyEffect
+        : 0;
+    const grossPerformancePercentWithCurrencyEffect =
+      timeWeightedInvestmentWithCurrencyEffect?.gt(0)
+        ? grossPerformanceWithCurrencyEffectValue /
+          timeWeightedInvestmentWithCurrencyEffect.toNumber()
+        : 0;
+
     const performancePercent =
       this.benchmarkService.calculateChangeInPercentage(
         marketPriceMax,
-        marketPrice
+        currentMarketPrice
       );
 
     return {
       activitiesCount,
       dateOfFirstActivity,
-      marketPrice,
+      marketPrice: currentMarketPrice,
       marketPriceMax,
       marketPriceMin,
       SymbolProfile,
@@ -959,20 +1019,17 @@ export class PortfolioService {
         dividendYieldPercentWithCurrencyEffect.toNumber(),
       feeInBaseCurrency: feeInBaseCurrency.toNumber(),
       grossPerformance: grossPerformance?.toNumber(),
-      grossPerformancePercent: grossPerformancePercentage?.toNumber(),
+      grossPerformancePercent: holding.grossPerformancePercentage?.toNumber(),
       grossPerformancePercentWithCurrencyEffect:
-        grossPerformancePercentageWithCurrencyEffect?.toNumber(),
+        grossPerformancePercentWithCurrencyEffect,
       grossPerformanceWithCurrencyEffect:
-        grossPerformanceWithCurrencyEffect?.toNumber(),
+        grossPerformanceWithCurrencyEffectValue,
       historicalData: historicalDataArray,
-      investmentInBaseCurrencyWithCurrencyEffect:
-        investmentWithCurrencyEffect?.toNumber(),
+      investmentInBaseCurrencyWithCurrencyEffect,
       netPerformance: netPerformance?.toNumber(),
-      netPerformancePercent: netPerformancePercentage?.toNumber(),
-      netPerformancePercentWithCurrencyEffect:
-        netPerformancePercentageWithCurrencyEffectMap?.['max']?.toNumber(),
-      netPerformanceWithCurrencyEffect:
-        netPerformanceWithCurrencyEffectMap?.['max']?.toNumber(),
+      netPerformancePercent: holding.netPerformancePercentage?.toNumber(),
+      netPerformancePercentWithCurrencyEffect,
+      netPerformanceWithCurrencyEffect,
       performances: {
         allTimeHigh: {
           performancePercent,
@@ -980,11 +1037,7 @@ export class PortfolioService {
         }
       },
       quantity: quantity.toNumber(),
-      value: this.exchangeRateDataService.toCurrency(
-        quantity.mul(marketPrice ?? 0).toNumber(),
-        currency,
-        userCurrency
-      )
+      value: currentValue
     };
   }
 

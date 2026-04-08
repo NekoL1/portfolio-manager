@@ -2,6 +2,7 @@ import { ActivitiesService } from '@ghostfolio/api/app/activities/activities.ser
 import { HasPermission } from '@ghostfolio/api/decorators/has-permission.decorator';
 import { HasPermissionGuard } from '@ghostfolio/api/guards/has-permission.guard';
 import {
+  redactPaths,
   hasNotDefinedValuesInObject,
   nullifyValuesInObject
 } from '@ghostfolio/api/helper/object.helper';
@@ -14,6 +15,7 @@ import { ConfigurationService } from '@ghostfolio/api/services/configuration/con
 import { ImpersonationService } from '@ghostfolio/api/services/impersonation/impersonation.service';
 import { getIntervalFromDateRange } from '@ghostfolio/common/calculation-helper';
 import {
+  DEFAULT_REDACTED_PATHS,
   HEADER_KEY_IMPERSONATION,
   UNKNOWN_KEY
 } from '@ghostfolio/common/config';
@@ -41,6 +43,7 @@ import { PerformanceCalculationType } from '@ghostfolio/common/types/performance
 import {
   Body,
   Controller,
+  MessageEvent,
   Get,
   Headers,
   HttpException,
@@ -48,6 +51,7 @@ import {
   Param,
   Put,
   Query,
+  Sse,
   UseGuards,
   UseInterceptors,
   Version
@@ -57,12 +61,16 @@ import { AuthGuard } from '@nestjs/passport';
 import { AssetClass, AssetSubClass, DataSource } from '@prisma/client';
 import { Big } from 'big.js';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
+import { EMPTY, Observable, from, interval } from 'rxjs';
+import { catchError, map, startWith, switchMap } from 'rxjs/operators';
 
 import { PortfolioService } from './portfolio.service';
 import { UpdateHoldingTagsDto } from './update-holding-tags.dto';
 
 @Controller('portfolio')
 export class PortfolioController {
+  private static readonly HOLDINGS_STREAM_INTERVAL_IN_MILLISECONDS = 15000;
+
   public constructor(
     private readonly activitiesService: ActivitiesService,
     private readonly apiService: ApiService,
@@ -428,6 +436,74 @@ export class PortfolioController {
     });
 
     return { holdings };
+  }
+
+  @Sse('holdings/stream')
+  @UseGuards(AuthGuard('jwt'), HasPermissionGuard)
+  @UseInterceptors(TransformDataSourceInRequestInterceptor)
+  public streamHoldings(
+    @Headers(HEADER_KEY_IMPERSONATION.toLowerCase()) impersonationId: string,
+    @Query('accounts') filterByAccounts?: string,
+    @Query('assetClasses') filterByAssetClasses?: string,
+    @Query('dataSource') filterByDataSource?: string,
+    @Query('holdingType') filterByHoldingType?: string,
+    @Query('query') filterBySearchQuery?: string,
+    @Query('range') dateRange: DateRange = 'max',
+    @Query('symbol') filterBySymbol?: string,
+    @Query('tags') filterByTags?: string
+  ): Observable<MessageEvent> {
+    const filters = this.apiService.buildFiltersFromQueryParams({
+      filterByAccounts,
+      filterByAssetClasses,
+      filterByDataSource,
+      filterByHoldingType,
+      filterBySearchQuery,
+      filterBySymbol,
+      filterByTags
+    });
+
+    const createHoldingsEvent = async (): Promise<MessageEvent> => {
+      const holdings = await this.portfolioService.getHoldings({
+        dateRange,
+        filters,
+        impersonationId,
+        userId: this.request.user.id
+      });
+
+      let response: PortfolioHoldingsResponse = { holdings };
+
+      if (
+        hasReadRestrictedAccessPermission({
+          impersonationId,
+          user: this.request.user
+        }) ||
+        isRestrictedView(this.request.user)
+      ) {
+        response = redactPaths({
+          object: response,
+          paths: DEFAULT_REDACTED_PATHS
+        });
+      }
+
+      return {
+        data: response,
+        type: 'holdings'
+      };
+    };
+
+    return interval(
+      PortfolioController.HOLDINGS_STREAM_INTERVAL_IN_MILLISECONDS
+    ).pipe(
+      startWith(0),
+      switchMap(() => {
+        return from(createHoldingsEvent()).pipe(
+          catchError(() => {
+            return EMPTY;
+          })
+        );
+      }),
+      map((event) => event)
+    );
   }
 
   @Get('investments')
