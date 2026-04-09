@@ -3,7 +3,7 @@ import {
   TAG_ID_EXCLUDE_FROM_ANALYSIS
 } from '@ghostfolio/common/config';
 import { ConfirmationDialogType } from '@ghostfolio/common/enums';
-import { getLocale } from '@ghostfolio/common/helper';
+import { getCurrencySymbol, getLocale } from '@ghostfolio/common/helper';
 import {
   Activity,
   AssetProfileIdentifier
@@ -378,6 +378,15 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
       maximumFractionDigits: 2,
       minimumFractionDigits: 2
     });
+  }
+
+  public getTotalGainCurrencySymbol(activity: Activity) {
+    return getCurrencySymbol(
+      activity.currency ??
+        activity.SymbolProfile?.currency ??
+        this.baseCurrency,
+      this.locale
+    );
   }
 
   public onOpenComment(aComment: string) {

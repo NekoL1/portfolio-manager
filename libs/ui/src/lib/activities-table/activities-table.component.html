@@ -326,9 +326,9 @@
                 'total-gain-amount--positive': isPositiveTotalGain(element)
               }"
             >
-              {{ isPositiveTotalGain(element) ? '+' : '-' }}${{
-                formatTotalGainValue(element.totalGain)
-              }}
+              {{ isPositiveTotalGain(element) ? '+' : '-'
+              }}{{ getTotalGainCurrencySymbol(element)
+              }}{{ formatTotalGainValue(element.totalGain) }}
             </span>
             <span
               class="total-gain-badge"

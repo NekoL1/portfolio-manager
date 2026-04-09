@@ -4,6 +4,7 @@ import {
 } from '@ghostfolio/common/chart-helper';
 import { primaryColorRgb, secondaryColorRgb } from '@ghostfolio/common/config';
 import {
+  formatCurrencyWithSymbol,
   getBackgroundColor,
   getLocale,
   getTextColor,
@@ -179,12 +180,15 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
       return '';
     }
 
-    return new Intl.NumberFormat(this.locale, {
+    return formatCurrencyWithSymbol({
       currency,
-      maximumFractionDigits: 2,
-      minimumFractionDigits: 2,
-      style: 'currency'
-    }).format(this.performance?.currentValueInBaseCurrency ?? 0);
+      locale: this.locale,
+      options: {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2
+      },
+      value: this.performance?.currentValueInBaseCurrency ?? 0
+    });
   }
 
   public get formattedLastUpdatedAt() {

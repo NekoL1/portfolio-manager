@@ -286,6 +286,66 @@ export function getNumberFormatGroup(aLocale = getLocale()) {
   })?.value;
 }
 
+export function getCurrencySymbol(aCurrency: string, aLocale = locale): string {
+  if (!aCurrency) {
+    return '';
+  }
+
+  if (aCurrency === 'USD') {
+    return '$';
+  }
+
+  if (aCurrency === 'CAD') {
+    return 'C$';
+  }
+
+  try {
+    return (
+      new Intl.NumberFormat(aLocale, {
+        currency: aCurrency,
+        currencyDisplay: 'narrowSymbol',
+        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+        style: 'currency'
+      })
+        .formatToParts(0)
+        .find(({ type }) => {
+          return type === 'currency';
+        })?.value ?? aCurrency
+    );
+  } catch {
+    return aCurrency;
+  }
+}
+
+export function formatCurrencyWithSymbol({
+  currency,
+  locale: aLocale = locale,
+  options = {},
+  value
+}: {
+  currency: string;
+  locale?: string;
+  options?: Intl.NumberFormatOptions;
+  value: number;
+}) {
+  return new Intl.NumberFormat(aLocale, {
+    ...options,
+    currency,
+    currencyDisplay: 'narrowSymbol',
+    style: 'currency'
+  })
+    .formatToParts(value)
+    .map((part) => {
+      if (part.type === 'currency') {
+        return getCurrencySymbol(currency, aLocale);
+      }
+
+      return part.value;
+    })
+    .join('');
+}
+
 export function getStartOfUtcDate(aDate: Date) {
   const date = new Date(aDate);
   date.setUTCHours(0, 0, 0, 0);

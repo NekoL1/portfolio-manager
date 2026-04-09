@@ -1,4 +1,8 @@
-import { getLocale, getLowercase } from '@ghostfolio/common/helper';
+import {
+  getCurrencySymbol,
+  getLocale,
+  getLowercase
+} from '@ghostfolio/common/helper';
 import {
   AssetProfileIdentifier,
   PortfolioPosition
@@ -52,6 +56,7 @@ export class GfHoldingsTableComponent {
   public readonly holdings = input.required<PortfolioPosition[]>();
   public readonly locale = input(getLocale());
   public readonly pageSize = model(Number.MAX_SAFE_INTEGER);
+  public readonly baseCurrency = input('');
 
   public readonly holdingClicked = output<AssetProfileIdentifier>();
 
@@ -62,6 +67,10 @@ export class GfHoldingsTableComponent {
 
   protected readonly displayedColumns = computed(() => {
     const columns = ['icon', 'nameWithSymbol', 'dateOfFirstActivity'];
+
+    if (this.hasPermissionToShowValues()) {
+      columns.push('marketPrice');
+    }
 
     if (this.hasPermissionToShowQuantities()) {
       columns.push('quantity');
@@ -122,5 +131,9 @@ export class GfHoldingsTableComponent {
     setTimeout(() => {
       this.dataSource.paginator = this.paginator();
     });
+  }
+
+  protected getMoneySymbol(currency: string | undefined) {
+    return getCurrencySymbol(currency ?? '', this.locale());
   }
 }
