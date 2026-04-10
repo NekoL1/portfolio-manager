@@ -149,10 +149,16 @@ export class GfHomeOverviewComponent implements OnInit {
         );
 
         this.contributionDataItems = twr.chart.map(
-          ({ date, totalInvestmentValueWithCurrencyEffect }) => {
+          ({
+            date,
+            netContributionValueWithCurrencyEffect,
+            totalInvestmentValueWithCurrencyEffect
+          }) => {
             return {
               date,
-              value: totalInvestmentValueWithCurrencyEffect
+              value:
+                netContributionValueWithCurrencyEffect ??
+                totalInvestmentValueWithCurrencyEffect
             };
           }
         );

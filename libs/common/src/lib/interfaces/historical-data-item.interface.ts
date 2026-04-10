@@ -8,6 +8,7 @@ export interface HistoricalDataItem {
   netPerformanceInPercentage?: number;
   netPerformanceInPercentageWithCurrencyEffect?: number;
   netPerformanceWithCurrencyEffect?: number;
+  netContributionValueWithCurrencyEffect?: number;
   netWorth?: number;
   netWorthInPercentage?: number;
   quantity?: number;

@@ -168,6 +168,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
     const investmentValuesWithCurrencyEffect: { [date: string]: Big } = {};
     let lastAveragePrice = new Big(0);
     let lastAveragePriceWithCurrencyEffect = new Big(0);
+    const netContributionValuesWithCurrencyEffect: { [date: string]: Big } = {};
     const netPerformanceValues: { [date: string]: Big } = {};
     const netPerformanceValuesWithCurrencyEffect: { [date: string]: Big } = {};
     const timeWeightedInvestmentValues: { [date: string]: Big } = {};
@@ -185,6 +186,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
     let totalInvestmentFromBuyTransactions = new Big(0);
     let totalInvestmentFromBuyTransactionsWithCurrencyEffect = new Big(0);
     let totalInvestmentWithCurrencyEffect = new Big(0);
+    let totalNetContributionWithCurrencyEffect = new Big(0);
     let totalLiabilities = new Big(0);
     let totalLiabilitiesInBaseCurrency = new Big(0);
     let totalQuantityFromBuyTransactions = new Big(0);
@@ -216,6 +218,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
         investmentValuesAccumulated: {},
         investmentValuesAccumulatedWithCurrencyEffect: {},
         investmentValuesWithCurrencyEffect: {},
+        netContributionValuesWithCurrencyEffect: {},
         netPerformance: new Big(0),
         netPerformancePercentage: new Big(0),
         netPerformancePercentageWithCurrencyEffectMap: {},
@@ -279,6 +282,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
         investmentValuesAccumulated: {},
         investmentValuesAccumulatedWithCurrencyEffect: {},
         investmentValuesWithCurrencyEffect: {},
+        netContributionValuesWithCurrencyEffect: {},
         netPerformance: new Big(0),
         netPerformancePercentage: new Big(0),
         netPerformancePercentageWithCurrencyEffectMap: {},
@@ -502,6 +506,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
 
       let transactionInvestment = new Big(0);
       let transactionInvestmentWithCurrencyEffect = new Big(0);
+      let transactionNetContributionWithCurrencyEffect = new Big(0);
 
       if (order.type === 'BUY') {
         transactionInvestment = order.quantity
@@ -511,6 +516,11 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
         transactionInvestmentWithCurrencyEffect = order.quantity
           .mul(order.unitPriceInBaseCurrencyWithCurrencyEffect)
           .mul(getFactor(order.type));
+
+        transactionNetContributionWithCurrencyEffect =
+          transactionInvestmentWithCurrencyEffect.plus(
+            order.feeInBaseCurrencyWithCurrencyEffect ?? 0
+          );
 
         totalQuantityFromBuyTransactions =
           totalQuantityFromBuyTransactions.plus(order.quantity);
@@ -534,6 +544,15 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
               .mul(order.quantity)
               .mul(getFactor(order.type));
         }
+
+        transactionNetContributionWithCurrencyEffect = order.quantity
+          .mul(order.unitPriceInBaseCurrencyWithCurrencyEffect)
+          .minus(order.feeInBaseCurrencyWithCurrencyEffect ?? 0)
+          .mul(-1);
+      } else if (order.type === 'DIVIDEND' || order.type === 'INTEREST') {
+        transactionNetContributionWithCurrencyEffect = order.quantity
+          .mul(order.unitPriceInBaseCurrencyWithCurrencyEffect)
+          .mul(-1);
       }
 
       if (PortfolioCalculator.ENABLE_LOGGING) {
@@ -556,6 +575,11 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       totalInvestmentWithCurrencyEffect =
         totalInvestmentWithCurrencyEffect.plus(
           transactionInvestmentWithCurrencyEffect
+        );
+
+      totalNetContributionWithCurrencyEffect =
+        totalNetContributionWithCurrencyEffect.plus(
+          transactionNetContributionWithCurrencyEffect
         );
 
       if (i >= indexOfStartOrder && !initialValue) {
@@ -732,6 +756,9 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
         investmentValuesWithCurrencyEffect[order.date] = (
           investmentValuesWithCurrencyEffect[order.date] ?? new Big(0)
         ).add(transactionInvestmentWithCurrencyEffect);
+
+        netContributionValuesWithCurrencyEffect[order.date] =
+          totalNetContributionWithCurrencyEffect;
 
         // If duration is effectively zero (first day), use the actual investment as the base.
         // Otherwise, use the calculated time-weighted average.
@@ -946,6 +973,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       investmentValuesAccumulated,
       investmentValuesAccumulatedWithCurrencyEffect,
       investmentValuesWithCurrencyEffect,
+      netContributionValuesWithCurrencyEffect,
       netPerformancePercentage,
       netPerformancePercentageWithCurrencyEffectMap,
       netPerformanceValues,

@@ -33,6 +33,7 @@ export interface SymbolMetrics {
     [date: string]: Big;
   };
   netPerformanceValuesWithCurrencyEffect: { [date: string]: Big };
+  netContributionValuesWithCurrencyEffect: { [date: string]: Big };
   netPerformanceWithCurrencyEffectMap: { [key: DateRange]: Big };
   timeWeightedInvestment: Big;
   timeWeightedInvestmentValues: {

@@ -317,6 +317,7 @@ export abstract class PortfolioCalculator {
     const accumulatedValuesByDate: {
       [date: string]: {
         investmentValueWithCurrencyEffect: Big;
+        netContributionValueWithCurrencyEffect: Big;
         totalAccountBalanceWithCurrencyEffect: Big;
         totalCurrentValue: Big;
         totalCurrentValueWithCurrencyEffect: Big;
@@ -336,6 +337,7 @@ export abstract class PortfolioCalculator {
         investmentValuesAccumulated: { [date: string]: Big };
         investmentValuesAccumulatedWithCurrencyEffect: { [date: string]: Big };
         investmentValuesWithCurrencyEffect: { [date: string]: Big };
+        netContributionValuesWithCurrencyEffect: { [date: string]: Big };
         netPerformanceValues: { [date: string]: Big };
         netPerformanceValuesWithCurrencyEffect: { [date: string]: Big };
         timeWeightedInvestmentValues: { [date: string]: Big };
@@ -363,6 +365,7 @@ export abstract class PortfolioCalculator {
         investmentValuesAccumulated,
         investmentValuesAccumulatedWithCurrencyEffect,
         investmentValuesWithCurrencyEffect,
+        netContributionValuesWithCurrencyEffect,
         netPerformance,
         netPerformancePercentage,
         netPerformancePercentageWithCurrencyEffectMap,
@@ -402,6 +405,7 @@ export abstract class PortfolioCalculator {
           investmentValuesAccumulated,
           investmentValuesAccumulatedWithCurrencyEffect,
           investmentValuesWithCurrencyEffect,
+          netContributionValuesWithCurrencyEffect,
           netPerformanceValues,
           netPerformanceValuesWithCurrencyEffect,
           timeWeightedInvestmentValues,
@@ -519,6 +523,10 @@ export abstract class PortfolioCalculator {
           symbolValues.investmentValuesWithCurrencyEffect?.[dateString] ??
           new Big(0);
 
+        const netContributionValueWithCurrencyEffect =
+          symbolValues.netContributionValuesWithCurrencyEffect?.[dateString] ??
+          new Big(0);
+
         const netPerformanceValue =
           symbolValues.netPerformanceValues?.[dateString] ?? new Big(0);
 
@@ -539,6 +547,10 @@ export abstract class PortfolioCalculator {
             accumulatedValuesByDate[dateString]
               ?.investmentValueWithCurrencyEffect ?? new Big(0)
           ).add(investmentValueWithCurrencyEffect),
+          netContributionValueWithCurrencyEffect: (
+            accumulatedValuesByDate[dateString]
+              ?.netContributionValueWithCurrencyEffect ?? new Big(0)
+          ).add(netContributionValueWithCurrencyEffect),
           totalAccountBalanceWithCurrencyEffect: accountBalanceMap[dateString],
           totalCurrentValue: (
             accumulatedValuesByDate[dateString]?.totalCurrentValue ?? new Big(0)
@@ -580,6 +592,7 @@ export abstract class PortfolioCalculator {
     ).map(([date, values]) => {
       const {
         investmentValueWithCurrencyEffect,
+        netContributionValueWithCurrencyEffect,
         totalAccountBalanceWithCurrencyEffect,
         totalCurrentValue,
         totalCurrentValueWithCurrencyEffect,
@@ -610,6 +623,8 @@ export abstract class PortfolioCalculator {
         netPerformanceInPercentageWithCurrencyEffect,
         investmentValueWithCurrencyEffect:
           investmentValueWithCurrencyEffect.toNumber(),
+        netContributionValueWithCurrencyEffect:
+          netContributionValueWithCurrencyEffect.toNumber(),
         netPerformance: totalNetPerformanceValue.toNumber(),
         netPerformanceWithCurrencyEffect:
           totalNetPerformanceValueWithCurrencyEffect.toNumber(),
