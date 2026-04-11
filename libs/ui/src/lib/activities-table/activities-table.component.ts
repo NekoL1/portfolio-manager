@@ -162,7 +162,6 @@ export class GfActivitiesTableComponent implements AfterViewInit, OnInit {
       'quantity',
       'unitPrice',
       'value',
-      'totalGain',
       'currency',
       'valueInBaseCurrency',
       'account',

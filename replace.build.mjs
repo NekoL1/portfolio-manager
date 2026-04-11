@@ -11,13 +11,16 @@ dotenv.config({
 });
 
 const now = new Date();
-const buildTimestamp = `${formatWithTwoDigits(
-  now.getDate()
-)}.${formatWithTwoDigits(
-  now.getMonth() + 1
-)}.${now.getFullYear()} ${formatWithTwoDigits(
-  now.getHours()
-)}:${formatWithTwoDigits(now.getMinutes())}`;
+const buildTimestamp = `${new Intl.DateTimeFormat('en-US', {
+  day: 'numeric',
+  month: 'long',
+  timeZone: 'America/Toronto'
+}).format(now)} - ${new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  hour12: true,
+  minute: '2-digit',
+  timeZone: 'America/Toronto'
+}).format(now)}`;
 
 try {
   const changedFiles = replaceInFileSync({
@@ -30,8 +33,4 @@ try {
   console.log(changedFiles);
 } catch (error) {
   console.error('Error occurred:', error);
-}
-
-function formatWithTwoDigits(aNumber) {
-  return aNumber < 10 ? '0' + aNumber : aNumber;
 }

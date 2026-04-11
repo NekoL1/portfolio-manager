@@ -308,49 +308,6 @@
       </td>
     </ng-container>
 
-    <ng-container matColumnDef="totalGain">
-      <th *matHeaderCellDef class="d-none d-lg-table-cell px-1" mat-header-cell>
-        <ng-container i18n>Total Gain</ng-container>
-      </th>
-      <td
-        *matCellDef="let element"
-        class="d-none d-lg-table-cell px-1"
-        mat-cell
-      >
-        @if (hasTotalGain(element)) {
-          <div class="total-gain-cell">
-            <span
-              class="total-gain-amount"
-              [ngClass]="{
-                'total-gain-amount--negative': !isPositiveTotalGain(element),
-                'total-gain-amount--positive': isPositiveTotalGain(element)
-              }"
-            >
-              {{ isPositiveTotalGain(element) ? '+' : '-'
-              }}{{ getTotalGainCurrencySymbol(element)
-              }}{{ formatTotalGainValue(element.totalGain) }}
-            </span>
-            <span
-              class="total-gain-badge"
-              [ngClass]="{
-                'total-gain-badge--negative': !isPositiveTotalGain(element),
-                'total-gain-badge--positive': isPositiveTotalGain(element)
-              }"
-            >
-              <span class="total-gain-badge__icon">
-                {{ getTotalGainDirection(element) === 'up' ? '↑' : '↓' }}
-              </span>
-              <span
-                >{{ formatTotalGainPercent(element.totalGainPercent) }}%</span
-              >
-            </span>
-          </div>
-        } @else {
-          <div class="d-flex text-muted">-</div>
-        }
-      </td>
-    </ng-container>
-
     <ng-container matColumnDef="currency">
       <th *matHeaderCellDef class="d-none d-lg-table-cell px-1" mat-header-cell>
         <ng-container i18n>Currency</ng-container>

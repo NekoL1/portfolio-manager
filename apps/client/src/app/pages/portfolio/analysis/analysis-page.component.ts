@@ -15,6 +15,7 @@ import {
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import type { AiPromptMode, GroupBy } from '@ghostfolio/common/types';
 import { DateRange } from '@ghostfolio/common/types/date-range.type';
+import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 import { translate } from '@ghostfolio/ui/i18n';
 import { GfPremiumIndicatorComponent } from '@ghostfolio/ui/premium-indicator';
 import { DataService } from '@ghostfolio/ui/services';
@@ -65,6 +66,8 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
   templateUrl: './analysis-page.html'
 })
 export class GfAnalysisPageComponent implements OnInit {
+  private static readonly ANALYSIS_PERFORMANCE_CALCULATION_TYPE =
+    PerformanceCalculationType.MWR;
   private static readonly PERFORMANCE_RANGES: DateRange[] = [
     '1d',
     '5d',
@@ -121,7 +124,8 @@ export class GfAnalysisPageComponent implements OnInit {
   public performanceRange: DateRange = 'max';
   public performanceDataItems: HistoricalDataItem[];
   public performanceGraphDataItems: HistoricalDataItem[];
-  public portfolioEvolutionDataLabel = $localize`Investment`;
+  public performanceGraphPercentageDataItems: HistoricalDataItem[];
+  public portfolioEvolutionDataLabel = $localize`Net Contributions`;
   public precision = 2;
   public streaks: PortfolioInvestmentsResponse['streaks'];
   public top3: PortfolioPosition[];
@@ -334,6 +338,8 @@ export class GfAnalysisPageComponent implements OnInit {
 
     this.dataService
       .fetchPortfolioPerformance({
+        calculationType:
+          GfAnalysisPageComponent.ANALYSIS_PERFORMANCE_CALCULATION_TYPE,
         filters: this.userService.getFilters(),
         range: this.user?.settings?.dateRange
       })
@@ -349,6 +355,8 @@ export class GfAnalysisPageComponent implements OnInit {
           index,
           {
             date,
+            netPerformanceInPercentageWithCurrencyEffect,
+            netContributionValueWithCurrencyEffect,
             totalInvestmentValueWithCurrencyEffect,
             valueInPercentage,
             valueWithCurrencyEffect
@@ -358,13 +366,15 @@ export class GfAnalysisPageComponent implements OnInit {
             // Ignore first item where value is 0
             this.investments.push({
               date,
-              investment: totalInvestmentValueWithCurrencyEffect
+              investment:
+                netContributionValueWithCurrencyEffect ??
+                totalInvestmentValueWithCurrencyEffect
             });
             this.performanceDataItems.push({
               date,
               value: isNumber(valueWithCurrencyEffect)
                 ? valueWithCurrencyEffect
-                : valueInPercentage
+                : netPerformanceInPercentageWithCurrencyEffect ?? valueInPercentage
             });
           }
         }
@@ -424,6 +434,8 @@ export class GfAnalysisPageComponent implements OnInit {
 
     this.dataService
       .fetchPortfolioPerformance({
+        calculationType:
+          GfAnalysisPageComponent.ANALYSIS_PERFORMANCE_CALCULATION_TYPE,
         filters: this.userService.getFilters(),
         range: this.performanceRange
       })
@@ -433,18 +445,29 @@ export class GfAnalysisPageComponent implements OnInit {
           firstOrderDate ?? this.firstOrderDate ?? new Date();
         this.performanceGraph = performance;
         this.performanceGraphDataItems = [];
+        this.performanceGraphPercentageDataItems = [];
         this.performanceGraphLastUpdatedAt = undefined;
 
         for (const [
           index,
-          { date, valueInPercentage, valueWithCurrencyEffect }
+          {
+            date,
+            netPerformanceInPercentageWithCurrencyEffect,
+            valueInPercentage,
+            valueWithCurrencyEffect
+          }
         ] of chart.entries()) {
           if (index > 0 || this.performanceRange === 'max') {
             this.performanceGraphDataItems.push({
               date,
               value: isNumber(valueWithCurrencyEffect)
                 ? valueWithCurrencyEffect
-                : valueInPercentage
+                : netPerformanceInPercentageWithCurrencyEffect ?? valueInPercentage
+            });
+            this.performanceGraphPercentageDataItems.push({
+              date,
+              value:
+                netPerformanceInPercentageWithCurrencyEffect ?? valueInPercentage
             });
           }
         }

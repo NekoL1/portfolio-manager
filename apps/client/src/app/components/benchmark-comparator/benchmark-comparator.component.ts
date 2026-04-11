@@ -83,6 +83,7 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
   @Input() locale = getLocale();
   @Input() performance: PortfolioPerformance;
   @Input() performanceDataItems: LineChartItem[];
+  @Input() performancePercentageDataItems: LineChartItem[] = [];
   @Input() performanceDateRangeOptions: ToggleOption[] = [];
   @Input() performanceLastUpdatedAt: string;
   @Input() selectedRange: DateRange;
@@ -219,10 +220,15 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
 
   private initialize() {
     const benchmarkDataValues: Record<string, number> = {};
+    const performancePercentageValues: Record<string, number> = {};
     const currency = this.currency;
 
     for (const { date, value } of this.benchmarkDataItems) {
       benchmarkDataValues[date] = value;
+    }
+
+    for (const { date, value } of this.performancePercentageDataItems) {
+      performancePercentageValues[date] = value;
     }
 
     const data: ChartData<'line'> = {
@@ -243,6 +249,29 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
               ? 5
               : 0;
           }
+        },
+        {
+          backgroundColor: 'transparent',
+          borderColor: 'transparent',
+          borderWidth: 0,
+          data: this.performanceDataItems.map(({ date }) => {
+            const performancePercentage = performancePercentageValues[date];
+
+            return {
+              x: parseDate(date).getTime(),
+              y:
+                typeof performancePercentage === 'number'
+                  ? performancePercentage
+                  : null
+            };
+          }),
+          label: $localize`Performance`,
+          pointBackgroundColor: `rgb(${primaryColorRgb.r}, ${primaryColorRgb.g}, ${primaryColorRgb.b})`,
+          pointHoverRadius: 0,
+          pointRadius: 0,
+          pointStyle: 'triangle',
+          showLine: false,
+          yAxisID: 'yPerformance'
         },
         {
           backgroundColor: `rgb(${secondaryColorRgb.r}, ${secondaryColorRgb.g}, ${secondaryColorRgb.b})`,
@@ -371,6 +400,16 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
                 ticks: {
                   display: false
                 }
+              },
+              yPerformance: {
+                border: {
+                  width: 0
+                },
+                display: false,
+                position: 'right',
+                ticks: {
+                  display: false
+                }
               }
             }
           },
@@ -416,6 +455,15 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
             return label;
           }
 
+          if (context.dataset.yAxisID === 'yPerformance') {
+            return `${label}${new Intl.NumberFormat(this.locale, {
+              maximumFractionDigits: 2,
+              minimumFractionDigits: 2,
+              signDisplay: 'always',
+              style: 'percent'
+            }).format(yPoint)}`;
+          }
+
           if (context.dataset.yAxisID === 'yBenchmark') {
             const index = context.dataIndex;
             const value = (this.benchmarkDataItems[index]?.value ?? 0) * 100;
@@ -426,10 +474,26 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
             })} %`;
           }
 
-          return `${label}${yPoint.toLocaleString(this.locale, {
+          const valueLabel = `${label}${yPoint.toLocaleString(this.locale, {
             maximumFractionDigits: 2,
             minimumFractionDigits: 2
           })} ${currency}`;
+          return valueLabel;
+        },
+        labelPointStyle: (context) => {
+          if (context.dataset.yAxisID !== 'yPerformance') {
+            return undefined;
+          }
+
+          const percentageValue = context.parsed.y;
+
+          return {
+            pointStyle:
+              percentageValue === 0 || percentageValue === null
+                ? 'circle'
+                : 'triangle',
+            rotation: percentageValue !== null && percentageValue < 0 ? 180 : 0
+          };
         },
         title: (contexts) => {
           return new Intl.DateTimeFormat(this.locale, {

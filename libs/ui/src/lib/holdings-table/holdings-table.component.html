@@ -74,12 +74,14 @@
         mat-cell
       >
         <div class="d-flex justify-content-end">
-          <span class="mr-1">{{ getMoneySymbol(element.currency) }}</span>
-          <gf-value
-            [isCurrency]="true"
-            [locale]="locale()"
-            [value]="isLoading() ? undefined : element.marketPrice"
-          />
+          <span>
+            {{
+              formatMoneyValue(
+                element.currency,
+                isLoading() ? undefined : element.marketPrice
+              )
+            }}
+          </span>
         </div>
       </td>
     </ng-container>
@@ -165,15 +167,17 @@
       </th>
       <td *matCellDef="let element" class="px-1" mat-cell>
         <div class="d-flex justify-content-end">
-          <span class="mr-1">{{ getMoneySymbol(baseCurrency()) }}</span>
-          <gf-value
-            [colorizeSign]="true"
-            [isCurrency]="true"
-            [locale]="locale()"
-            [value]="
-              isLoading() ? undefined : element.netPerformanceWithCurrencyEffect
+          <span
+            [ngClass]="
+              getPerformanceValueClass(element.netPerformanceWithCurrencyEffect)
             "
-          />
+          >
+            {{
+              formatSignedMoneyValue(
+                isLoading() ? undefined : element.netPerformanceWithCurrencyEffect
+              )
+            }}
+          </span>
         </div>
       </td>
     </ng-container>

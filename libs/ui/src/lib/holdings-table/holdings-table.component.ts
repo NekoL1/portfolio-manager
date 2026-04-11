@@ -136,4 +136,48 @@ export class GfHoldingsTableComponent {
   protected getMoneySymbol(currency: string | undefined) {
     return getCurrencySymbol(currency ?? '', this.locale());
   }
+
+  protected getPerformanceValueClass(value: number | undefined) {
+    if (value !== undefined && value > 0) {
+      return 'text-success';
+    }
+
+    if (value !== undefined && value < 0) {
+      return 'text-danger';
+    }
+
+    return '';
+  }
+
+  protected formatSignedMoneyValue(value: number | undefined) {
+    if (value === undefined) {
+      return '';
+    }
+
+    const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+    const symbol = this.getMoneySymbol(this.baseCurrency()).trim();
+    const amount = Math.abs(value).toLocaleString(this.locale(), {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    });
+
+    return `${sign}${symbol}${amount}`.replace(/\s+/g, '');
+  }
+
+  protected formatMoneyValue(
+    currency: string | undefined,
+    value: number | undefined
+  ) {
+    if (value === undefined) {
+      return '';
+    }
+
+    const symbol = this.getMoneySymbol(currency).trim();
+    const amount = Math.abs(value).toLocaleString(this.locale(), {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2
+    });
+
+    return `${symbol}${amount}`.replace(/\s+/g, '');
+  }
 }
