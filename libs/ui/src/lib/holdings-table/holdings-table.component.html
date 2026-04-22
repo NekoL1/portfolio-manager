@@ -174,7 +174,9 @@
           >
             {{
               formatSignedMoneyValue(
-                isLoading() ? undefined : element.netPerformanceWithCurrencyEffect
+                isLoading()
+                  ? undefined
+                  : element.netPerformanceWithCurrencyEffect
               )
             }}
           </span>

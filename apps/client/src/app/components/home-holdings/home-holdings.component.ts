@@ -14,12 +14,13 @@ import { DataService } from '@ghostfolio/ui/services';
 import { GfToggleComponent } from '@ghostfolio/ui/toggle';
 import { GfTreemapChartComponent } from '@ghostfolio/ui/treemap-chart';
 
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import {
   ChangeDetectorRef,
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
   DestroyRef,
+  inject,
   OnInit
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -65,15 +66,27 @@ export class GfHomeHoldingsComponent implements OnInit {
     { label: $localize`Active`, value: 'ACTIVE' },
     { label: $localize`Closed`, value: 'CLOSED' }
   ];
+  public readonly chartLegendItems = [
+    { color: '#ee766a', label: '≤ -3' },
+    { color: '#f0a198', label: '-2' },
+    { color: '#f4d2cc', label: '-1' },
+    { color: '#d9dde3', label: '0' },
+    { color: '#d2ead4', label: '+1' },
+    { color: '#8fce99', label: '+2' },
+    { color: '#77c684', label: '≥ 3' }
+  ];
   public routerLinkPortfolioActivities =
     internalRoutes.portfolio.subRoutes.activities.routerLink;
+  public isDarkTheme = false;
   public user: User;
   public viewModeFormControl = new FormControl<HoldingsViewMode>(
     GfHomeHoldingsComponent.DEFAULT_HOLDINGS_VIEW_MODE
   );
 
+  private document = inject(DOCUMENT);
   private holdingsStreamReconnectTimeout?: ReturnType<typeof setTimeout>;
   private holdingsStreamSubscription?: Subscription;
+  private themeObserver?: MutationObserver;
 
   public constructor(
     private changeDetectorRef: ChangeDetectorRef,
@@ -88,11 +101,13 @@ export class GfHomeHoldingsComponent implements OnInit {
 
     this.destroyRef.onDestroy(() => {
       this.stopHoldingsStream();
+      this.themeObserver?.disconnect();
     });
   }
 
   public ngOnInit() {
     this.deviceType = this.deviceService.getDeviceInfo().deviceType;
+    this.initializeThemeObserver();
 
     this.impersonationStorageService
       .onChangeHasImpersonation()
@@ -117,6 +132,7 @@ export class GfHomeHoldingsComponent implements OnInit {
             permissions.createActivity
           );
 
+          this.syncTheme();
           this.initialize();
 
           this.changeDetectorRef.markForCheck();
@@ -160,6 +176,19 @@ export class GfHomeHoldingsComponent implements OnInit {
     return this.dataService.fetchPortfolioHoldings(
       this.getHoldingsRequestParams()
     );
+  }
+
+  private initializeThemeObserver() {
+    this.syncTheme();
+
+    this.themeObserver = new MutationObserver(() => {
+      this.syncTheme();
+    });
+
+    this.themeObserver.observe(this.document.body, {
+      attributeFilter: ['class'],
+      attributes: true
+    });
   }
 
   private getHoldingsRequestParams() {
@@ -211,6 +240,16 @@ export class GfHomeHoldingsComponent implements OnInit {
 
         this.changeDetectorRef.markForCheck();
       });
+  }
+
+  private syncTheme() {
+    const isDarkTheme =
+      this.document?.body?.classList.contains('theme-dark') ?? false;
+
+    if (this.isDarkTheme !== isDarkTheme) {
+      this.isDarkTheme = isDarkTheme;
+      this.changeDetectorRef.markForCheck();
+    }
   }
 
   private startHoldingsStream() {

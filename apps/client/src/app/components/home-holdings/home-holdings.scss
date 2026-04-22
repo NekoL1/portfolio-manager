@@ -1,9 +1,361 @@
 :host {
-  display: block;
+  --holdings-page-surface: #faf8f4;
+  --holdings-page-border: rgba(20, 24, 32, 0.08);
+  --holdings-page-ink: #171b23;
+  --holdings-page-muted: #5f6671;
+  --holdings-page-panel: #ffffff;
+  --holdings-page-toggle-surface: rgba(20, 24, 32, 0.06);
+  --holdings-page-toggle-border: rgba(20, 24, 32, 0.08);
+  --holdings-page-toggle-text: rgba(23, 27, 35, 0.7);
+  --holdings-page-toggle-active-surface: rgba(255, 255, 255, 0.95);
+  --holdings-chart-width: 2060px;
+  --holdings-table-width: 1500px;
 
+  display: block;
+}
+
+.holdings-shell--theme-dark {
+  --holdings-page-surface:
+    radial-gradient(
+      circle at top left,
+      rgba(69, 121, 191, 0.1),
+      transparent 22%
+    ),
+    linear-gradient(180deg, #0a0d12 0%, #0c1016 100%);
+  --holdings-page-border: rgba(255, 255, 255, 0.08);
+  --holdings-page-ink: #eef3fb;
+  --holdings-page-muted: rgba(199, 209, 224, 0.76);
+  --holdings-page-panel: linear-gradient(
+    180deg,
+    rgba(24, 30, 39, 0.98) 0%,
+    rgba(15, 20, 27, 0.98) 100%
+  );
+  --holdings-page-toggle-surface: rgba(255, 255, 255, 0.07);
+  --holdings-page-toggle-border: rgba(255, 255, 255, 0.12);
+  --holdings-page-toggle-text: rgba(229, 236, 246, 0.8);
+  --holdings-page-toggle-active-surface: rgba(255, 255, 255, 0.18);
+}
+
+.holdings-shell {
+  margin: 0 auto;
+  max-width: var(--holdings-table-width);
+  padding: 2rem clamp(1.25rem, 2vw, 2.5rem) 3rem;
+}
+
+.holdings-shell--chart {
+  background: var(--holdings-page-surface);
+  max-width: none;
+  min-height: 100%;
+  padding: 1.5rem 0 2rem;
+}
+
+.holdings-page-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  color: #f5f7fb;
+  font-size: clamp(2rem, 3vw, 2.9rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  margin: 0;
+}
+
+.page-subtitle {
+  color: rgba(226, 232, 240, 0.74);
+  font-size: 1rem;
+  margin: 0.5rem 0 0;
+  max-width: 34rem;
+}
+
+.page-controls,
+.chart-mode-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 0.85rem;
+}
+
+.chart-mode-content {
+  margin: 0 auto;
+  max-width: var(--holdings-chart-width);
+  padding: 0 clamp(2.25rem, 3vw, 4.5rem);
+}
+
+.chart-mode-toolbar {
+  justify-content: flex-end;
+  margin-bottom: 0;
+}
+
+.view-mode-toggle {
   .mat-button-toggle-group {
-    .mat-button-toggle-appearance-standard {
-      --mat-button-toggle-height: 1.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    padding: 0.2rem;
+  }
+
+  .mat-button-toggle {
+    --mat-button-toggle-height: 2.4rem;
+    border-radius: 999px;
+    color: rgba(226, 232, 240, 0.82);
+    min-width: 2.6rem;
+  }
+
+  .mat-button-toggle-checked {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+  }
+}
+
+.holdings-shell--chart {
+  .view-mode-toggle {
+    .mat-button-toggle-group {
+      background: var(--holdings-page-toggle-surface);
+      border-color: var(--holdings-page-toggle-border);
     }
+
+    .mat-button-toggle {
+      color: var(--holdings-page-toggle-text);
+    }
+
+    .mat-button-toggle-checked {
+      background: var(--holdings-page-toggle-active-surface);
+      color: var(--holdings-page-ink);
+    }
+  }
+}
+
+.visualization-panel {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--holdings-page-ink);
+  padding: 0;
+}
+
+.visualization-panel__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  margin-bottom: 1.35rem;
+}
+
+.visualization-copy {
+  max-width: 76rem;
+
+  h2 {
+    color: var(--holdings-page-ink);
+    font-family: 'InterVariable', 'Inter', sans-serif;
+    font-size: clamp(1.7rem, 1.9vw, 2.45rem);
+    font-weight: 500;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin: 0 0 0.7rem;
+  }
+
+  p {
+    color: var(--holdings-page-muted);
+    font-family: 'InterVariable', 'Inter', sans-serif;
+    font-size: 1rem;
+    line-height: 1.45;
+    margin: 0;
+    max-width: 72rem;
+  }
+}
+
+.visualization-scale {
+  flex: 0 0 auto;
+  min-width: 36rem;
+}
+
+.visualization-scale__title {
+  color: var(--holdings-page-ink);
+  font-family: 'InterVariable', 'Inter', sans-serif;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.65rem;
+}
+
+.visualization-scale__bars,
+.visualization-scale__ticks {
+  display: grid;
+  gap: 0.25rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.visualization-scale__bar {
+  border-radius: 0.24rem;
+  display: block;
+  height: 1.35rem;
+}
+
+.visualization-scale__ticks {
+  color: var(--holdings-page-ink);
+  font-family: 'InterVariable', 'Inter', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  opacity: 0.72;
+  margin-top: 0.35rem;
+  text-align: center;
+}
+
+.visualization-panel__chart {
+  background: var(--holdings-page-panel);
+  border-radius: 1.15rem;
+  box-shadow: inset 0 0 0 1px var(--holdings-page-border);
+  overflow: hidden;
+  padding: 0.1rem;
+}
+
+.holdings-shell--theme-dark {
+  &.holdings-shell--chart {
+    padding-bottom: 2.5rem;
+  }
+
+  .chart-mode-toolbar {
+    background: rgba(10, 14, 20, 0.68);
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 999px;
+    margin: 0 0 1.1rem auto;
+    padding: 0.28rem;
+    width: fit-content;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  }
+
+  .visualization-panel {
+    background:
+      radial-gradient(
+        circle at top right,
+        rgba(74, 121, 173, 0.045),
+        transparent 24%
+      ),
+      linear-gradient(180deg, rgba(19, 24, 31, 0.96) 0%, #0d1218 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1.6rem;
+    box-shadow:
+      0 16px 38px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    overflow: hidden;
+    padding: 1.65rem 1.65rem 1.45rem;
+  }
+
+  .visualization-panel__header {
+    align-items: flex-end;
+    margin-bottom: 1.2rem;
+  }
+
+  .visualization-scale__bar {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+      0 1px 0 rgba(255, 255, 255, 0.015);
+  }
+
+  .visualization-panel__chart {
+    background: linear-gradient(
+      180deg,
+      rgba(14, 19, 26, 0.98) 0%,
+      #0a0e14 100%
+    );
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 10px 24px rgba(0, 0, 0, 0.18);
+    padding: 0.12rem;
+  }
+}
+
+.visualization-treemap {
+  display: block;
+}
+
+.table-panel {
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 1399.98px) {
+  .chart-mode-content {
+    padding-left: clamp(1.6rem, 2vw, 2.8rem);
+    padding-right: clamp(1.6rem, 2vw, 2.8rem);
+  }
+
+  .visualization-scale {
+    min-width: 30rem;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .holdings-shell {
+    padding-top: 1.25rem;
+  }
+
+  .holdings-page-header,
+  .visualization-panel__header {
+    flex-direction: column;
+  }
+
+  .chart-mode-content,
+  .holdings-shell--chart {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .chart-mode-toolbar,
+  .page-controls {
+    justify-content: flex-start;
+  }
+
+  .chart-mode-content {
+    padding: 0 1.25rem;
+  }
+
+  .visualization-scale {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .page-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .holdings-shell--chart {
+    padding-top: 1rem;
+  }
+
+  .chart-mode-content {
+    padding: 0 0.9rem;
+  }
+
+  .visualization-copy {
+    h2 {
+      font-size: 1.85rem;
+    }
+
+    p {
+      font-size: 0.98rem;
+    }
+  }
+
+  .visualization-scale__title {
+    font-size: 0.95rem;
+  }
+
+  .visualization-scale__ticks {
+    font-size: 0.75rem;
+  }
+
+  .visualization-panel__chart {
+    border-radius: 0.85rem;
   }
 }

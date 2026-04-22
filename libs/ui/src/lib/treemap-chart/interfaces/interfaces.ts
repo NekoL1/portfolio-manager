@@ -9,7 +9,7 @@ export interface GetColorParams {
   positiveNetPerformancePercentsRange: { max: number; min: number };
 }
 
-interface GfTreemapDataPoint extends TreemapDataPoint {
+export interface GfTreemapDataPoint extends TreemapDataPoint {
   _data: PortfolioPosition;
 }
 

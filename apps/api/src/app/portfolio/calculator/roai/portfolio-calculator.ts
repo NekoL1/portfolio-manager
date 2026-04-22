@@ -166,8 +166,6 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       [date: string]: Big;
     } = {};
     const investmentValuesWithCurrencyEffect: { [date: string]: Big } = {};
-    let lastAveragePrice = new Big(0);
-    let lastAveragePriceWithCurrencyEffect = new Big(0);
     const netContributionValuesWithCurrencyEffect: { [date: string]: Big } = {};
     const netPerformanceValues: { [date: string]: Big } = {};
     const netPerformanceValuesWithCurrencyEffect: { [date: string]: Big } = {};
@@ -183,13 +181,10 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
     let totalInterest = new Big(0);
     let totalInterestInBaseCurrency = new Big(0);
     let totalInvestment = new Big(0);
-    let totalInvestmentFromBuyTransactions = new Big(0);
-    let totalInvestmentFromBuyTransactionsWithCurrencyEffect = new Big(0);
     let totalInvestmentWithCurrencyEffect = new Big(0);
     let totalNetContributionWithCurrencyEffect = new Big(0);
     let totalLiabilities = new Big(0);
     let totalLiabilitiesInBaseCurrency = new Big(0);
-    let totalQuantityFromBuyTransactions = new Big(0);
     let totalUnits = new Big(0);
     let valueAtStartDate: Big;
     let valueAtStartDateWithCurrencyEffect: Big;
@@ -484,6 +479,16 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       const marketPriceInBaseCurrencyWithCurrencyEffect =
         order.unitPriceFromMarketData?.mul(exchangeRateAtOrderDate ?? 1) ??
         new Big(0);
+      const unitPriceInBaseCurrency =
+        order.unitPriceInBaseCurrency ?? new Big(0);
+      const unitPriceInBaseCurrencyWithCurrencyEffect =
+        order.unitPriceInBaseCurrencyWithCurrencyEffect ?? new Big(0);
+      const averageInvestmentPerUnit = totalUnits.eq(0)
+        ? new Big(0)
+        : totalInvestment.div(totalUnits).abs();
+      const averageInvestmentPerUnitWithCurrencyEffect = totalUnits.eq(0)
+        ? new Big(0)
+        : totalInvestmentWithCurrencyEffect.div(totalUnits).abs();
 
       const valueOfInvestmentBeforeTransaction = totalUnits.mul(
         marketPriceInBaseCurrency
@@ -509,44 +514,60 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       let transactionNetContributionWithCurrencyEffect = new Big(0);
 
       if (order.type === 'BUY') {
-        transactionInvestment = order.quantity
-          .mul(order.unitPriceInBaseCurrency)
-          .mul(getFactor(order.type));
+        if (totalUnits.lt(0)) {
+          const quantityToCloseShort = totalUnits.abs().lt(order.quantity)
+            ? totalUnits.abs()
+            : order.quantity;
+          const quantityToOpenLong = order.quantity.minus(quantityToCloseShort);
 
-        transactionInvestmentWithCurrencyEffect = order.quantity
-          .mul(order.unitPriceInBaseCurrencyWithCurrencyEffect)
-          .mul(getFactor(order.type));
+          transactionInvestment = quantityToCloseShort
+            .mul(averageInvestmentPerUnit)
+            .plus(quantityToOpenLong.mul(unitPriceInBaseCurrency));
+
+          transactionInvestmentWithCurrencyEffect = quantityToCloseShort
+            .mul(averageInvestmentPerUnitWithCurrencyEffect)
+            .plus(
+              quantityToOpenLong.mul(unitPriceInBaseCurrencyWithCurrencyEffect)
+            );
+        } else {
+          transactionInvestment = order.quantity.mul(unitPriceInBaseCurrency);
+          transactionInvestmentWithCurrencyEffect = order.quantity.mul(
+            unitPriceInBaseCurrencyWithCurrencyEffect
+          );
+        }
 
         transactionNetContributionWithCurrencyEffect =
           transactionInvestmentWithCurrencyEffect.plus(
             order.feeInBaseCurrencyWithCurrencyEffect ?? 0
           );
-
-        totalQuantityFromBuyTransactions =
-          totalQuantityFromBuyTransactions.plus(order.quantity);
-
-        totalInvestmentFromBuyTransactions =
-          totalInvestmentFromBuyTransactions.plus(transactionInvestment);
-
-        totalInvestmentFromBuyTransactionsWithCurrencyEffect =
-          totalInvestmentFromBuyTransactionsWithCurrencyEffect.plus(
-            transactionInvestmentWithCurrencyEffect
-          );
       } else if (order.type === 'SELL') {
         if (totalUnits.gt(0)) {
-          transactionInvestment = totalInvestment
-            .div(totalUnits)
-            .mul(order.quantity)
-            .mul(getFactor(order.type));
-          transactionInvestmentWithCurrencyEffect =
-            totalInvestmentWithCurrencyEffect
-              .div(totalUnits)
-              .mul(order.quantity)
-              .mul(getFactor(order.type));
+          const quantityToCloseLong = totalUnits.lt(order.quantity)
+            ? totalUnits
+            : order.quantity;
+          const quantityToOpenShort = order.quantity.minus(quantityToCloseLong);
+
+          transactionInvestment = quantityToCloseLong
+            .mul(averageInvestmentPerUnit)
+            .mul(-1)
+            .minus(quantityToOpenShort.mul(unitPriceInBaseCurrency));
+          transactionInvestmentWithCurrencyEffect = quantityToCloseLong
+            .mul(averageInvestmentPerUnitWithCurrencyEffect)
+            .mul(-1)
+            .minus(
+              quantityToOpenShort.mul(unitPriceInBaseCurrencyWithCurrencyEffect)
+            );
+        } else {
+          transactionInvestment = order.quantity
+            .mul(unitPriceInBaseCurrency)
+            .mul(-1);
+          transactionInvestmentWithCurrencyEffect = order.quantity
+            .mul(unitPriceInBaseCurrencyWithCurrencyEffect)
+            .mul(-1);
         }
 
         transactionNetContributionWithCurrencyEffect = order.quantity
-          .mul(order.unitPriceInBaseCurrencyWithCurrencyEffect)
+          .mul(unitPriceInBaseCurrencyWithCurrencyEffect)
           .minus(order.feeInBaseCurrencyWithCurrencyEffect ?? 0)
           .mul(-1);
       } else if (order.type === 'DIVIDEND' || order.type === 'INTEREST') {
@@ -613,19 +634,38 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
         marketPriceInBaseCurrencyWithCurrencyEffect
       );
 
+      const closingQuantity =
+        order.type === 'SELL' && totalUnits.gt(0)
+          ? totalUnits.lt(order.quantity)
+            ? totalUnits
+            : order.quantity
+          : order.type === 'BUY' && totalUnits.lt(0)
+            ? totalUnits.abs().lt(order.quantity)
+              ? totalUnits.abs()
+              : order.quantity
+            : new Big(0);
+
       const grossPerformanceFromSell =
-        order.type === 'SELL'
-          ? order.unitPriceInBaseCurrency
-              .minus(lastAveragePrice)
-              .mul(order.quantity)
-          : new Big(0);
+        order.type === 'SELL' && totalUnits.gt(0)
+          ? unitPriceInBaseCurrency
+              .minus(averageInvestmentPerUnit)
+              .mul(closingQuantity)
+          : order.type === 'BUY' && totalUnits.lt(0)
+            ? averageInvestmentPerUnit
+                .minus(unitPriceInBaseCurrency)
+                .mul(closingQuantity)
+            : new Big(0);
 
       const grossPerformanceFromSellWithCurrencyEffect =
-        order.type === 'SELL'
-          ? order.unitPriceInBaseCurrencyWithCurrencyEffect
-              .minus(lastAveragePriceWithCurrencyEffect)
-              .mul(order.quantity)
-          : new Big(0);
+        order.type === 'SELL' && totalUnits.gt(0)
+          ? unitPriceInBaseCurrencyWithCurrencyEffect
+              .minus(averageInvestmentPerUnitWithCurrencyEffect)
+              .mul(closingQuantity)
+          : order.type === 'BUY' && totalUnits.lt(0)
+            ? averageInvestmentPerUnitWithCurrencyEffect
+                .minus(unitPriceInBaseCurrencyWithCurrencyEffect)
+                .mul(closingQuantity)
+            : new Big(0);
 
       grossPerformanceFromSells = grossPerformanceFromSells.plus(
         grossPerformanceFromSell
@@ -635,27 +675,6 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
         grossPerformanceFromSellsWithCurrencyEffect.plus(
           grossPerformanceFromSellWithCurrencyEffect
         );
-
-      lastAveragePrice = totalQuantityFromBuyTransactions.eq(0)
-        ? new Big(0)
-        : totalInvestmentFromBuyTransactions.div(
-            totalQuantityFromBuyTransactions
-          );
-
-      lastAveragePriceWithCurrencyEffect = totalQuantityFromBuyTransactions.eq(
-        0
-      )
-        ? new Big(0)
-        : totalInvestmentFromBuyTransactionsWithCurrencyEffect.div(
-            totalQuantityFromBuyTransactions
-          );
-
-      if (totalUnits.eq(0)) {
-        // Reset tracking variables when position is fully closed
-        totalInvestmentFromBuyTransactions = new Big(0);
-        totalInvestmentFromBuyTransactionsWithCurrencyEffect = new Big(0);
-        totalQuantityFromBuyTransactions = new Big(0);
-      }
 
       if (PortfolioCalculator.ENABLE_LOGGING) {
         console.log(

@@ -374,7 +374,8 @@ export class GfAnalysisPageComponent implements OnInit {
               date,
               value: isNumber(valueWithCurrencyEffect)
                 ? valueWithCurrencyEffect
-                : netPerformanceInPercentageWithCurrencyEffect ?? valueInPercentage
+                : (netPerformanceInPercentageWithCurrencyEffect ??
+                  valueInPercentage)
             });
           }
         }
@@ -462,12 +463,14 @@ export class GfAnalysisPageComponent implements OnInit {
               date,
               value: isNumber(valueWithCurrencyEffect)
                 ? valueWithCurrencyEffect
-                : netPerformanceInPercentageWithCurrencyEffect ?? valueInPercentage
+                : (netPerformanceInPercentageWithCurrencyEffect ??
+                  valueInPercentage)
             });
             this.performanceGraphPercentageDataItems.push({
               date,
               value:
-                netPerformanceInPercentageWithCurrencyEffect ?? valueInPercentage
+                netPerformanceInPercentageWithCurrencyEffect ??
+                valueInPercentage
             });
           }
         }

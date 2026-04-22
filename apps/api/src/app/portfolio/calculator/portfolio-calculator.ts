@@ -1137,14 +1137,14 @@ export abstract class PortfolioCalculator {
       const oldAccumulatedSymbol = symbols[symbol];
 
       if (oldAccumulatedSymbol) {
+        const oldQuantity = oldAccumulatedSymbol.quantity;
         let investment = oldAccumulatedSymbol.investment;
-
-        let newQuantity = quantity
-          .mul(factor)
-          .plus(oldAccumulatedSymbol.quantity);
+        let newQuantity = quantity.mul(factor).plus(oldQuantity);
 
         if (type === 'BUY') {
-          if (oldAccumulatedSymbol.investment.gte(0)) {
+          if (oldQuantity.lt(0) && newQuantity.gt(0)) {
+            investment = newQuantity.mul(unitPrice);
+          } else if (oldAccumulatedSymbol.investment.gte(0)) {
             investment = oldAccumulatedSymbol.investment.plus(
               quantity.mul(unitPrice)
             );
@@ -1154,7 +1154,9 @@ export abstract class PortfolioCalculator {
             );
           }
         } else if (type === 'SELL') {
-          if (oldAccumulatedSymbol.investment.gt(0)) {
+          if (oldQuantity.gt(0) && newQuantity.lt(0)) {
+            investment = newQuantity.mul(unitPrice);
+          } else if (oldAccumulatedSymbol.investment.gt(0)) {
             investment = oldAccumulatedSymbol.investment.minus(
               quantity.mul(oldAccumulatedSymbol.averagePrice)
             );

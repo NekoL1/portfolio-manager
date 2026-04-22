@@ -1,13 +1,15 @@
-@if (isLoading) {
-  <ngx-skeleton-loader
-    animation="pulse"
-    class="h-100"
-    [theme]="{
-      height: '100%'
-    }"
-  />
-}
-<canvas
-  #chartCanvas
-  [ngStyle]="{ display: isLoading ? 'none' : 'block' }"
-></canvas>
+<div class="treemap-chart">
+  @if (isLoading) {
+    <ngx-skeleton-loader
+      animation="pulse"
+      class="treemap-chart__skeleton"
+      [theme]="{
+        height: '100%'
+      }"
+    />
+  }
+  <canvas
+    #chartCanvas
+    [class.treemap-chart__canvas--loading]="isLoading"
+  ></canvas>
+</div>
