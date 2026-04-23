@@ -1,9 +1,14 @@
+import { ConfigurationService } from '@ghostfolio/api/services/configuration/configuration.service';
 import { DataProviderService } from '@ghostfolio/api/services/data-provider/data-provider.service';
 import { DataEnhancerInterface } from '@ghostfolio/api/services/data-provider/interfaces/data-enhancer.interface';
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
 import { DataGatheringItem } from '@ghostfolio/api/services/interfaces/interfaces';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
+import {
+  normalizeCountryBreakdown,
+  resolveStoredCountryBreakdown
+} from '@ghostfolio/api/services/symbol-profile/etf-country-breakdown.util';
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
 import {
   DATA_GATHERING_QUEUE,
@@ -26,7 +31,7 @@ import {
 
 import { InjectQueue } from '@nestjs/bull';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { DataSource } from '@prisma/client';
+import { AssetSubClass, DataSource, SymbolProfile } from '@prisma/client';
 import { JobOptions, Queue } from 'bull';
 import { format, min, subDays, subMilliseconds, subYears } from 'date-fns';
 import { isEmpty } from 'lodash';
@@ -39,6 +44,7 @@ export class DataGatheringService {
     private readonly dataEnhancers: DataEnhancerInterface[],
     @InjectQueue(DATA_GATHERING_QUEUE)
     private readonly dataGatheringQueue: Queue,
+    private readonly configurationService: ConfigurationService,
     private readonly dataProviderService: DataProviderService,
     private readonly exchangeRateDataService: ExchangeRateDataService,
     private readonly prismaService: PrismaService,
@@ -197,6 +203,11 @@ export class DataGatheringService {
         }
       }
 
+      assetProfiles[symbol].countries = await this.resolveCountryBreakdown({
+        assetProfile: assetProfiles[symbol],
+        symbol
+      });
+
       const {
         assetClass,
         assetSubClass,
@@ -212,7 +223,7 @@ export class DataGatheringService {
         name,
         sectors,
         url
-      } = assetProfile;
+      } = assetProfiles[symbol];
 
       try {
         await this.prismaService.symbolProfile.upsert({
@@ -266,6 +277,80 @@ export class DataGatheringService {
           throw error;
         }
       }
+    }
+  }
+
+  private async resolveCountryBreakdown({
+    assetProfile,
+    symbol
+  }: {
+    assetProfile: Partial<SymbolProfile>;
+    symbol: string;
+  }) {
+    const normalizedStoredCountries = normalizeCountryBreakdown(
+      assetProfile.countries as any
+    );
+
+    if (normalizedStoredCountries.length > 0) {
+      return normalizedStoredCountries.map(({ code, source, weight }) => ({
+        code,
+        source: source ?? 'PROVIDER',
+        weight
+      }));
+    }
+
+    if (
+      assetProfile.assetSubClass === AssetSubClass.ETF ||
+      assetProfile.assetSubClass === AssetSubClass.MUTUALFUND
+    ) {
+      const financialModelingPrepCountries =
+        await this.getFinancialModelingPrepCountryBreakdown({
+          isin: assetProfile.isin,
+          symbol
+        });
+
+      if (financialModelingPrepCountries.length > 0) {
+        return financialModelingPrepCountries;
+      }
+    }
+
+    return resolveStoredCountryBreakdown({
+      assetSubClass: assetProfile.assetSubClass,
+      dataSource: assetProfile.dataSource as DataSource,
+      isin: assetProfile.isin,
+      storedCountries: [],
+      symbol
+    }).countries;
+  }
+
+  private async getFinancialModelingPrepCountryBreakdown({
+    isin,
+    symbol
+  }: {
+    isin?: string;
+    symbol: string;
+  }) {
+    if (!this.configurationService.get('API_KEY_FINANCIAL_MODELING_PREP')) {
+      return [];
+    }
+
+    try {
+      const financialModelingPrepAssetProfile = await this.dataProviderService
+        .getDataProvider(DataSource.FINANCIAL_MODELING_PREP)
+        .getAssetProfile({
+          symbol: isin ?? symbol
+        });
+
+      return normalizeCountryBreakdown(
+        financialModelingPrepAssetProfile?.countries as any
+      );
+    } catch (error) {
+      Logger.warn(
+        `Failed to gather FMP country breakdown for ${symbol}: ${error?.message ?? error}`,
+        'DataGatheringService'
+      );
+
+      return [];
     }
   }
 

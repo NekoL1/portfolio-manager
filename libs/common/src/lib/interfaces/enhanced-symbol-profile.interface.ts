@@ -1,3 +1,8 @@
+import {
+  CountryBreakdownSource,
+  GeographicAllocationKind
+} from '@ghostfolio/common/types';
+
 import { AssetClass, AssetSubClass, DataSource } from '@prisma/client';
 
 import { Country } from './country.interface';
@@ -12,6 +17,7 @@ export interface EnhancedSymbolProfile {
   assetSubClass: AssetSubClass;
   comment?: string;
   countries: Country[];
+  countryBreakdownSource?: CountryBreakdownSource;
   createdAt: Date;
   currency?: string;
   cusip?: string;
@@ -25,6 +31,7 @@ export interface EnhancedSymbolProfile {
   id: string;
   isActive: boolean;
   isin?: string;
+  geographicAllocationKind?: GeographicAllocationKind;
   name?: string;
   scraperConfiguration?: ScraperConfiguration;
   sectors: Sector[];

@@ -167,6 +167,7 @@ export class FinancialModelingPrepService
 
               return {
                 code: countryCode,
+                source: 'FMP',
                 weight: parseFloat(weightPercentage.slice(0, -1)) / 100
               };
             });

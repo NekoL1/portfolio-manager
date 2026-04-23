@@ -1,5 +1,5 @@
 import { getTooltipOptions } from '@ghostfolio/common/chart-helper';
-import { UNKNOWN_KEY } from '@ghostfolio/common/config';
+import { OTHER_KEY, UNKNOWN_KEY } from '@ghostfolio/common/config';
 import { getLocale, getSum, getTextColor } from '@ghostfolio/common/helper';
 import {
   AssetProfileIdentifier,
@@ -85,8 +85,6 @@ export class GfPortfolioProportionChartComponent
 
   protected readonly proportionChartClicked = output<AssetProfileIdentifier>();
 
-  private readonly OTHER_KEY = 'OTHER';
-
   private readonly chartCanvas =
     viewChild.required<ElementRef<HTMLCanvasElement>>('chartCanvas');
 
@@ -125,7 +123,7 @@ export class GfPortfolioProportionChartComponent
       };
     } = {};
     this.colorMap = {
-      [this.OTHER_KEY]: `rgba(${getTextColor(this.colorScheme)}, 0.24)`,
+      [OTHER_KEY]: `rgba(${getTextColor(this.colorScheme)}, 0.24)`,
       [UNKNOWN_KEY]: `rgba(${getTextColor(this.colorScheme)}, 0.12)`
     };
 
@@ -235,16 +233,22 @@ export class GfPortfolioProportionChartComponent
         chartDataSorted.length - 1
       );
 
-      chartDataSorted.push([
-        this.OTHER_KEY,
-        { name: this.OTHER_KEY, subCategory: {}, value: new Big(0) }
-      ]);
-      const otherItem = chartDataSorted[chartDataSorted.length - 1];
+      let otherItem = chartDataSorted.find(([symbol]) => {
+        return symbol === OTHER_KEY;
+      });
+
+      if (!otherItem) {
+        otherItem = [
+          OTHER_KEY,
+          { name: OTHER_KEY, subCategory: {}, value: new Big(0) }
+        ];
+        chartDataSorted.push(otherItem);
+      }
 
       rest.forEach((restItem) => {
         if (otherItem?.[1]) {
           otherItem[1] = {
-            name: this.OTHER_KEY,
+            name: OTHER_KEY,
             subCategory: {},
             value: otherItem[1].value.plus(restItem[1].value)
           };
@@ -447,7 +451,7 @@ export class GfPortfolioProportionChartComponent
           let symbol =
             (context.chart.data.labels?.[labelIndex] as string) ?? '';
 
-          if (symbol === this.OTHER_KEY) {
+          if (symbol === OTHER_KEY) {
             symbol = $localize`Other`;
           } else if (symbol === UNKNOWN_KEY) {
             symbol = $localize`No data available`;

@@ -2,7 +2,12 @@ import { GfAccountDetailDialogComponent } from '@ghostfolio/client/components/ac
 import { AccountDetailDialogParams } from '@ghostfolio/client/components/account-detail-dialog/interfaces/interfaces';
 import { ImpersonationStorageService } from '@ghostfolio/client/services/impersonation-storage.service';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
-import { MAX_TOP_HOLDINGS, UNKNOWN_KEY } from '@ghostfolio/common/config';
+import {
+  BITCOIN_KEY,
+  MAX_TOP_HOLDINGS,
+  OTHER_KEY,
+  UNKNOWN_KEY
+} from '@ghostfolio/common/config';
 import { prettifySymbol } from '@ghostfolio/common/helper';
 import {
   AssetProfileIdentifier,
@@ -230,12 +235,28 @@ export class GfAllocationsPageComponent implements OnInit {
   private initialize() {
     this.accounts = {};
     this.continents = {
+      [BITCOIN_KEY]: {
+        name: 'Bitcoin',
+        value: 0
+      },
+      [OTHER_KEY]: {
+        name: OTHER_KEY,
+        value: 0
+      },
       [UNKNOWN_KEY]: {
         name: UNKNOWN_KEY,
         value: 0
       }
     };
     this.countries = {
+      [BITCOIN_KEY]: {
+        name: 'Bitcoin',
+        value: 0
+      },
+      [OTHER_KEY]: {
+        name: OTHER_KEY,
+        value: 0
+      },
       [UNKNOWN_KEY]: {
         name: UNKNOWN_KEY,
         value: 0
@@ -288,6 +309,10 @@ export class GfAllocationsPageComponent implements OnInit {
       summary: undefined
     };
     this.sectors = {
+      [BITCOIN_KEY]: {
+        name: 'Bitcoin',
+        value: 0
+      },
       [UNKNOWN_KEY]: {
         name: UNKNOWN_KEY,
         value: 0
@@ -349,10 +374,13 @@ export class GfAllocationsPageComponent implements OnInit {
         name: position.name
       };
 
-      if (position.assetClass !== AssetClass.LIQUIDITY) {
+      if (
+        position.assetClass !== AssetClass.LIQUIDITY ||
+        position.geographicAllocationKind === 'BITCOIN'
+      ) {
         // Prepare analysis data by continents, countries, holdings and sectors except for liquidity
 
-        if (position.countries.length > 0) {
+        if (position.geographicAllocationKind === 'COUNTRIES') {
           for (const country of position.countries) {
             const { code, continent, name, weight } = country;
 
@@ -390,6 +418,30 @@ export class GfAllocationsPageComponent implements OnInit {
               };
             }
           }
+        } else if (position.geographicAllocationKind === 'BITCOIN') {
+          this.continents[BITCOIN_KEY].value += isNumber(
+            position.valueInBaseCurrency
+          )
+            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
+            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+
+          this.countries[BITCOIN_KEY].value += isNumber(
+            position.valueInBaseCurrency
+          )
+            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
+            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+        } else if (position.geographicAllocationKind === 'OTHER') {
+          this.continents[OTHER_KEY].value += isNumber(
+            position.valueInBaseCurrency
+          )
+            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
+            : this.portfolioDetails.holdings[symbol].valueInPercentage;
+
+          this.countries[OTHER_KEY].value += isNumber(
+            position.valueInBaseCurrency
+          )
+            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
+            : this.portfolioDetails.holdings[symbol].valueInPercentage;
         } else {
           this.continents[UNKNOWN_KEY].value += isNumber(
             position.valueInBaseCurrency
@@ -452,6 +504,12 @@ export class GfAllocationsPageComponent implements OnInit {
               };
             }
           }
+        } else if (position.geographicAllocationKind === 'BITCOIN') {
+          this.sectors[BITCOIN_KEY].value += isNumber(
+            position.valueInBaseCurrency
+          )
+            ? this.portfolioDetails.holdings[symbol].valueInBaseCurrency
+            : this.portfolioDetails.holdings[symbol].valueInPercentage;
         } else {
           this.sectors[UNKNOWN_KEY].value += isNumber(
             position.valueInBaseCurrency

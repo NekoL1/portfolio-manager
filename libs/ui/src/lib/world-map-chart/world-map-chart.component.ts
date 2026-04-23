@@ -1,3 +1,4 @@
+import { BITCOIN_KEY, OTHER_KEY, UNKNOWN_KEY } from '@ghostfolio/common/config';
 import { getLocale, getNumberFormatGroup } from '@ghostfolio/common/helper';
 
 import {
@@ -34,6 +35,10 @@ export class GfWorldMapChartComponent implements OnChanges, OnDestroy {
     this.countries = structuredClone(this.countries);
 
     if (this.countries) {
+      delete this.countries[OTHER_KEY];
+      delete this.countries[BITCOIN_KEY];
+      delete this.countries[UNKNOWN_KEY];
+
       this.isLoading = true;
 
       this.destroySvgMap();

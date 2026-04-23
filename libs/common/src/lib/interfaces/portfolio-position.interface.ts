@@ -1,4 +1,8 @@
 import { Market, MarketAdvanced } from '@ghostfolio/common/types';
+import {
+  CountryBreakdownSource,
+  GeographicAllocationKind
+} from '@ghostfolio/common/types';
 
 import { AssetClass, AssetSubClass, DataSource, Tag } from '@prisma/client';
 
@@ -22,7 +26,9 @@ export interface PortfolioPosition {
     | 'assetClass'
     | 'assetSubClass'
     | 'countries'
+    | 'countryBreakdownSource'
     | 'currency'
+    | 'geographicAllocationKind'
     | 'dataSource'
     | 'holdings'
     | 'name'
@@ -43,6 +49,8 @@ export interface PortfolioPosition {
   /** @deprecated */
   countries: Country[];
 
+  countryBreakdownSource?: CountryBreakdownSource;
+
   /** @deprecated */
   currency: string;
 
@@ -56,6 +64,8 @@ export interface PortfolioPosition {
   grossPerformancePercent: number;
   grossPerformancePercentWithCurrencyEffect: number;
   grossPerformanceWithCurrencyEffect: number;
+
+  geographicAllocationKind?: GeographicAllocationKind;
 
   /** @deprecated */
   holdings: Holding[];

@@ -7,6 +7,7 @@ import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-
 import { MarketDataService } from '@ghostfolio/api/services/market-data/market-data.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
+import { DataGatheringService } from '@ghostfolio/api/services/queues/data-gathering/data-gathering.service';
 import { SymbolProfileService } from '@ghostfolio/api/services/symbol-profile/symbol-profile.service';
 import {
   PROPERTY_CURRENCIES,
@@ -63,6 +64,7 @@ export class AdminService {
     private readonly marketDataService: MarketDataService,
     private readonly prismaService: PrismaService,
     private readonly propertyService: PropertyService,
+    private readonly dataGatheringService: DataGatheringService,
     private readonly symbolProfileService: SymbolProfileService
   ) {}
 
@@ -82,19 +84,26 @@ export class AdminService {
         });
       }
 
-      const assetProfiles = await this.dataProviderService.getAssetProfiles([
+      await this.dataGatheringService.gatherAssetProfiles([
         { dataSource, symbol }
       ]);
 
-      if (!assetProfiles[symbol]?.currency) {
+      const symbolProfile = await this.prismaService.symbolProfile.findUnique({
+        where: {
+          dataSource_symbol: {
+            dataSource,
+            symbol
+          }
+        }
+      });
+
+      if (!symbolProfile) {
         throw new BadRequestException(
           `Asset profile not found for ${symbol} (${dataSource})`
         );
       }
 
-      return this.symbolProfileService.add(
-        assetProfiles[symbol] as Prisma.SymbolProfileCreateInput
-      );
+      return symbolProfile;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -625,23 +634,23 @@ export class AdminService {
       const symbolProfileOverrides = {
         assetClass: assetClass as AssetClass,
         assetSubClass: assetSubClass as AssetSubClass,
+        countries,
         name: name as string,
+        sectors,
         url: url as string
       };
 
       const updatedSymbolProfile: Prisma.SymbolProfileUpdateInput = {
         comment,
-        countries,
         currency,
         dataSource,
         holdings,
         isActive,
         scraperConfiguration,
-        sectors,
         symbol,
         symbolMapping,
         ...(dataSource === 'MANUAL'
-          ? { assetClass, assetSubClass, name, url }
+          ? { assetClass, assetSubClass, countries, name, sectors, url }
           : {
               SymbolProfileOverrides: {
                 upsert: {

@@ -5,8 +5,10 @@ import type { AccountWithValue } from './account-with-value.type';
 import type { AiPromptMode } from './ai-prompt-mode.type';
 import type { BenchmarkTrend } from './benchmark-trend.type';
 import type { ColorScheme } from './color-scheme.type';
+import type { CountryBreakdownSource } from './country-breakdown-source.type';
 import type { DateRange } from './date-range.type';
 import type { FearAndGreedIndexMode } from './fear-and-greed-index.type';
+import type { GeographicAllocationKind } from './geographic-allocation-kind.type';
 import type { Granularity } from './granularity.type';
 import type { GroupBy } from './group-by.type';
 import type { HoldingType } from './holding-type.type';
@@ -29,8 +31,10 @@ export type {
   AiPromptMode,
   BenchmarkTrend,
   ColorScheme,
+  CountryBreakdownSource,
   DateRange,
   FearAndGreedIndexMode,
+  GeographicAllocationKind,
   Granularity,
   GroupBy,
   HoldingType,

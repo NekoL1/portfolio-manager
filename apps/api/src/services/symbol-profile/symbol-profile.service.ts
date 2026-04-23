@@ -1,5 +1,5 @@
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
-import { UNKNOWN_KEY } from '@ghostfolio/common/config';
+import { BITCOIN_KEY, OTHER_KEY, UNKNOWN_KEY } from '@ghostfolio/common/config';
 import {
   AssetProfileIdentifier,
   EnhancedSymbolProfile,
@@ -12,6 +12,11 @@ import { Sector } from '@ghostfolio/common/interfaces/sector.interface';
 import { Injectable } from '@nestjs/common';
 import { Prisma, SymbolProfile, SymbolProfileOverrides } from '@prisma/client';
 import { continents, countries } from 'countries-list';
+
+import {
+  normalizeCountryBreakdown,
+  resolveStoredCountryBreakdown
+} from './etf-country-breakdown.util';
 
 @Injectable()
 export class SymbolProfileService {
@@ -192,13 +197,25 @@ export class SymbolProfileService {
     })[]
   ): EnhancedSymbolProfile[] {
     return symbolProfiles.map((symbolProfile) => {
+      const rawCountries =
+        symbolProfile?.countries as unknown as Prisma.JsonArray;
+      const rawOverrideCountries = symbolProfile?.SymbolProfileOverrides
+        ?.countries as unknown as Prisma.JsonArray;
+      const countryBreakdown = resolveStoredCountryBreakdown({
+        assetSubClass: symbolProfile.assetSubClass,
+        dataSource: symbolProfile.dataSource,
+        isin: symbolProfile.isin,
+        overrideCountries: rawOverrideCountries as any,
+        storedCountries: rawCountries as any,
+        symbol: symbolProfile.symbol
+      });
       const item = {
         ...symbolProfile,
         activitiesCount: 0,
-        countries: this.getCountries(
-          symbolProfile?.countries as unknown as Prisma.JsonArray
-        ),
+        countries: this.getCountries(countryBreakdown.countries as any),
+        countryBreakdownSource: countryBreakdown.countryBreakdownSource,
         dateOfFirstActivity: undefined as Date,
+        geographicAllocationKind: countryBreakdown.geographicAllocationKind,
         holdings: this.getHoldings(
           symbolProfile?.holdings as unknown as Prisma.JsonArray
         ),
@@ -227,9 +244,10 @@ export class SymbolProfileService {
           (item.SymbolProfileOverrides.countries as unknown as Prisma.JsonArray)
             ?.length > 0
         ) {
-          item.countries = this.getCountries(
-            item.SymbolProfileOverrides.countries as unknown as Prisma.JsonArray
-          );
+          item.countries = this.getCountries(countryBreakdown.countries as any);
+          item.countryBreakdownSource = 'OVERRIDE';
+          item.geographicAllocationKind =
+            countryBreakdown.geographicAllocationKind;
         }
 
         if (
@@ -266,16 +284,28 @@ export class SymbolProfileService {
       return [];
     }
 
-    return aCountries.map((country: Pick<Country, 'code' | 'weight'>) => {
-      const { code, weight } = country;
+    return normalizeCountryBreakdown(aCountries as any).map(
+      (country: Pick<Country, 'code' | 'weight'>) => {
+        const { code, weight } = country;
 
-      return {
-        code,
-        weight,
-        continent: continents[countries[code]?.continent] ?? UNKNOWN_KEY,
-        name: countries[code]?.name ?? UNKNOWN_KEY
-      };
-    });
+        return {
+          code,
+          weight,
+          continent:
+            code === BITCOIN_KEY
+              ? BITCOIN_KEY
+              : code === OTHER_KEY
+                ? OTHER_KEY
+                : (continents[countries[code]?.continent] ?? UNKNOWN_KEY),
+          name:
+            code === BITCOIN_KEY
+              ? 'Bitcoin'
+              : code === OTHER_KEY
+                ? OTHER_KEY
+                : (countries[code]?.name ?? UNKNOWN_KEY)
+        };
+      }
+    );
   }
 
   private getHoldings(aHoldings: Prisma.JsonArray = []): Holding[] {

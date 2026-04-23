@@ -31,6 +31,7 @@ import {
   getIntervalFromDateRange
 } from '@ghostfolio/common/calculation-helper';
 import {
+  BITCOIN_KEY,
   DEFAULT_CURRENCY,
   TAG_ID_EMERGENCY_FUND,
   TAG_ID_EXCLUDE_FROM_ANALYSIS,
@@ -627,8 +628,10 @@ export class PortfolioService {
           assetClass: assetProfile.assetClass,
           assetSubClass: assetProfile.assetSubClass,
           countries: assetProfile.countries,
+          countryBreakdownSource: assetProfile.countryBreakdownSource,
           currency: assetProfile.currency,
           dataSource: assetProfile.dataSource,
+          geographicAllocationKind: assetProfile.geographicAllocationKind,
           holdings: assetProfile.holdings.map(
             ({ allocationInPercentage, name }) => {
               return {
@@ -647,6 +650,7 @@ export class PortfolioService {
         },
         assetSubClass: assetProfile.assetSubClass,
         countries: assetProfile.countries,
+        countryBreakdownSource: assetProfile.countryBreakdownSource,
         dataSource: assetProfile.dataSource,
         dateOfFirstActivity: parseDate(dateOfFirstActivity),
         dividend: dividend?.toNumber() ?? 0,
@@ -656,6 +660,7 @@ export class PortfolioService {
           grossPerformancePercentageWithCurrencyEffect?.toNumber() ?? 0,
         grossPerformanceWithCurrencyEffect:
           grossPerformanceWithCurrencyEffect?.toNumber() ?? 0,
+        geographicAllocationKind: assetProfile.geographicAllocationKind,
         holdings: assetProfile.holdings.map(
           ({ allocationInPercentage, name }) => {
             return {
@@ -1503,8 +1508,11 @@ export class PortfolioService {
     for (const [, position] of Object.entries(holdings)) {
       const value = position.valueInBaseCurrency;
 
-      if (position.assetClass !== AssetClass.LIQUIDITY) {
-        if (position.countries.length > 0) {
+      if (
+        position.assetClass !== AssetClass.LIQUIDITY ||
+        position.geographicAllocationKind === BITCOIN_KEY
+      ) {
+        if (position.geographicAllocationKind === 'COUNTRIES') {
           markets.developedMarkets.valueInBaseCurrency +=
             position.markets.developedMarkets * value;
           markets.emergingMarkets.valueInBaseCurrency +=
@@ -1524,6 +1532,12 @@ export class PortfolioService {
             position.marketsAdvanced.northAmerica * value;
           marketsAdvanced.otherMarkets.valueInBaseCurrency +=
             position.marketsAdvanced.otherMarkets * value;
+        } else if (
+          position.geographicAllocationKind === BITCOIN_KEY ||
+          position.geographicAllocationKind === 'OTHER'
+        ) {
+          markets.otherMarkets.valueInBaseCurrency += value;
+          marketsAdvanced.otherMarkets.valueInBaseCurrency += value;
         } else {
           markets[UNKNOWN_KEY].valueInBaseCurrency += value;
           marketsAdvanced[UNKNOWN_KEY].valueInBaseCurrency += value;
@@ -1811,7 +1825,13 @@ export class PortfolioService {
       otherMarkets: 0
     };
 
-    if (assetProfile.countries.length > 0) {
+    if (
+      assetProfile.geographicAllocationKind === BITCOIN_KEY ||
+      assetProfile.geographicAllocationKind === 'OTHER'
+    ) {
+      markets.otherMarkets = 1;
+      marketsAdvanced.otherMarkets = 1;
+    } else if (assetProfile.geographicAllocationKind === 'COUNTRIES') {
       for (const country of assetProfile.countries) {
         if (developedMarkets.includes(country.code)) {
           markets.developedMarkets = new Big(markets.developedMarkets)
@@ -1855,22 +1875,30 @@ export class PortfolioService {
             .toNumber();
         }
       }
+      markets[UNKNOWN_KEY] = Math.max(
+        0,
+        new Big(1)
+          .minus(markets.developedMarkets)
+          .minus(markets.emergingMarkets)
+          .minus(markets.otherMarkets)
+          .toNumber()
+      );
+
+      marketsAdvanced[UNKNOWN_KEY] = Math.max(
+        0,
+        new Big(1)
+          .minus(marketsAdvanced.asiaPacific)
+          .minus(marketsAdvanced.emergingMarkets)
+          .minus(marketsAdvanced.europe)
+          .minus(marketsAdvanced.japan)
+          .minus(marketsAdvanced.northAmerica)
+          .minus(marketsAdvanced.otherMarkets)
+          .toNumber()
+      );
+    } else {
+      markets[UNKNOWN_KEY] = 1;
+      marketsAdvanced[UNKNOWN_KEY] = 1;
     }
-
-    markets[UNKNOWN_KEY] = new Big(1)
-      .minus(markets.developedMarkets)
-      .minus(markets.emergingMarkets)
-      .minus(markets.otherMarkets)
-      .toNumber();
-
-    marketsAdvanced[UNKNOWN_KEY] = new Big(1)
-      .minus(marketsAdvanced.asiaPacific)
-      .minus(marketsAdvanced.emergingMarkets)
-      .minus(marketsAdvanced.europe)
-      .minus(marketsAdvanced.japan)
-      .minus(marketsAdvanced.northAmerica)
-      .minus(marketsAdvanced.otherMarkets)
-      .toNumber();
 
     return { markets, marketsAdvanced };
   }

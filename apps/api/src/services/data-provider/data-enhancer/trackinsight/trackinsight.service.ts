@@ -125,6 +125,7 @@ export class TrackinsightDataEnhancerService implements DataEnhancerInterface {
 
         response.countries.push({
           code: countryCode,
+          source: 'TRACKINSIGHT',
           weight: value.weight
         });
       }

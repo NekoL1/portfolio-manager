@@ -244,6 +244,22 @@
                 >Asset Sub Class</gf-value
               >
             </div>
+            <div class="col-6 mb-3">
+              <gf-value
+                size="medium"
+                [hidden]="!assetProfile?.countryBreakdownSource"
+                [value]="assetProfile?.countryBreakdownSource"
+                >Country Breakdown Source</gf-value
+              >
+            </div>
+            <div class="col-6 mb-3">
+              <gf-value
+                size="medium"
+                [hidden]="!assetProfile?.geographicAllocationKind"
+                [value]="assetProfile?.geographicAllocationKind"
+                >Geographic Allocation Kind</gf-value
+              >
+            </div>
             @if (
               assetProfile?.countries?.length > 0 ||
               assetProfile?.sectors?.length > 0
@@ -393,30 +409,28 @@
                 ></textarea>
               </mat-form-field>
             </div>
-            @if (assetProfile?.dataSource === 'MANUAL') {
-              <div>
-                <mat-form-field appearance="outline" class="w-100">
-                  <mat-label i18n>Sectors</mat-label>
-                  <textarea
-                    cdkTextareaAutosize
-                    formControlName="sectors"
-                    matInput
-                    type="text"
-                  ></textarea>
-                </mat-form-field>
-              </div>
-              <div>
-                <mat-form-field appearance="outline" class="w-100">
-                  <mat-label i18n>Countries</mat-label>
-                  <textarea
-                    cdkTextareaAutosize
-                    formControlName="countries"
-                    matInput
-                    type="text"
-                  ></textarea>
-                </mat-form-field>
-              </div>
-            }
+            <div>
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label i18n>Sectors</mat-label>
+                <textarea
+                  cdkTextareaAutosize
+                  formControlName="sectors"
+                  matInput
+                  type="text"
+                ></textarea>
+              </mat-form-field>
+            </div>
+            <div>
+              <mat-form-field appearance="outline" class="w-100">
+                <mat-label i18n>Countries</mat-label>
+                <textarea
+                  cdkTextareaAutosize
+                  formControlName="countries"
+                  matInput
+                  type="text"
+                ></textarea>
+              </mat-form-field>
+            </div>
             <div>
               <mat-form-field appearance="outline" class="w-100 without-hint">
                 <mat-label i18n>Url</mat-label>
