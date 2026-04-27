@@ -64,6 +64,26 @@ import { DeviceDetectorService } from 'ngx-device-detector';
   templateUrl: './allocations-page.html'
 })
 export class GfAllocationsPageComponent implements OnInit {
+  private static readonly CANONICAL_SECTORS = new Set([
+    'Basic Materials',
+    'Bitcoin',
+    'Communication Services',
+    'Consumer Cyclical',
+    'Consumer Staples',
+    'Energy',
+    'Financial Services',
+    'Healthcare',
+    'Industrials',
+    'Real Estate',
+    'Technology',
+    'Utilities'
+  ]);
+
+  public countryBreakdownRows: {
+    name: string;
+    percentage: number;
+    value: number;
+  }[] = [];
   public accounts: {
     [id: string]: Pick<Account, 'name'> & {
       id: string;
@@ -111,6 +131,11 @@ export class GfAllocationsPageComponent implements OnInit {
   public sectors: {
     [name: string]: { name: string; value: number };
   };
+  public sectorBreakdownRows: {
+    name: string;
+    percentage: number;
+    value: number;
+  }[] = [];
   public symbols: {
     [name: string]: {
       dataSource?: DataSource;
@@ -308,6 +333,7 @@ export class GfAllocationsPageComponent implements OnInit {
       platforms: {},
       summary: undefined
     };
+    this.countryBreakdownRows = [];
     this.sectors = {
       [BITCOIN_KEY]: {
         name: 'Bitcoin',
@@ -318,6 +344,7 @@ export class GfAllocationsPageComponent implements OnInit {
         value: 0
       }
     };
+    this.sectorBreakdownRows = [];
     this.symbols = {
       [UNKNOWN_KEY]: {
         name: UNKNOWN_KEY,
@@ -485,7 +512,8 @@ export class GfAllocationsPageComponent implements OnInit {
 
         if (position.sectors.length > 0) {
           for (const sector of position.sectors) {
-            const { name, weight } = sector;
+            const { weight } = sector;
+            const name = this.normalizeSectorName(sector.name);
 
             if (this.sectors[name]?.value) {
               this.sectors[name].value +=
@@ -619,6 +647,43 @@ export class GfAllocationsPageComponent implements OnInit {
     if (this.topHoldings.length > MAX_TOP_HOLDINGS) {
       this.topHoldings = this.topHoldings.slice(0, MAX_TOP_HOLDINGS);
     }
+
+    this.countryBreakdownRows = this.buildBreakdownRows({
+      data: this.countries,
+      maxItems: 15
+    });
+    this.sectorBreakdownRows = this.buildBreakdownRows({
+      data: this.sectors,
+      maxItems: 13
+    });
+  }
+
+  private buildBreakdownRows({
+    data,
+    maxItems
+  }: {
+    data: { [name: string]: { name: string; value: number } };
+    maxItems: number;
+  }) {
+    const rows = Object.values(data)
+      .filter(({ value }) => {
+        return value > 0;
+      })
+      .sort((a, b) => {
+        return b.value - a.value;
+      });
+
+    const total = rows.reduce((sum, { value }) => {
+      return sum + value;
+    }, 0);
+
+    return rows.slice(0, maxItems).map(({ name, value }) => {
+      return {
+        name,
+        percentage: total > 0 ? value / total : 0,
+        value
+      };
+    });
   }
 
   private normalizeAssetName(name: string) {
@@ -627,6 +692,14 @@ export class GfAllocationsPageComponent implements OnInit {
     }
 
     return name.trim().toLowerCase();
+  }
+
+  private normalizeSectorName(name?: string) {
+    if (!name || !GfAllocationsPageComponent.CANONICAL_SECTORS.has(name)) {
+      return UNKNOWN_KEY;
+    }
+
+    return name;
   }
 
   private openAccountDetailDialog(aAccountId: string) {

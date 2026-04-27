@@ -17,6 +17,7 @@ import {
   normalizeCountryBreakdown,
   resolveStoredCountryBreakdown
 } from './etf-country-breakdown.util';
+import { resolveStoredSectorBreakdown } from './sector-breakdown.util';
 
 @Injectable()
 export class SymbolProfileService {
@@ -201,12 +202,21 @@ export class SymbolProfileService {
         symbolProfile?.countries as unknown as Prisma.JsonArray;
       const rawOverrideCountries = symbolProfile?.SymbolProfileOverrides
         ?.countries as unknown as Prisma.JsonArray;
+      const rawSectors = symbolProfile?.sectors as unknown as Prisma.JsonArray;
+      const rawOverrideSectors = symbolProfile?.SymbolProfileOverrides
+        ?.sectors as unknown as Prisma.JsonArray;
       const countryBreakdown = resolveStoredCountryBreakdown({
         assetSubClass: symbolProfile.assetSubClass,
         dataSource: symbolProfile.dataSource,
         isin: symbolProfile.isin,
         overrideCountries: rawOverrideCountries as any,
         storedCountries: rawCountries as any,
+        symbol: symbolProfile.symbol
+      });
+      const sectorBreakdown = resolveStoredSectorBreakdown({
+        dataSource: symbolProfile.dataSource,
+        overrideSectors: rawOverrideSectors as any,
+        storedSectors: rawSectors as any,
         symbol: symbolProfile.symbol
       });
       const item = {
@@ -221,7 +231,7 @@ export class SymbolProfileService {
         ),
         scraperConfiguration: this.getScraperConfiguration(symbolProfile),
         sectors: this.getSectors(
-          symbolProfile?.sectors as unknown as Prisma.JsonArray
+          sectorBreakdown as unknown as Prisma.JsonArray
         ),
         symbolMapping: this.getSymbolMapping(symbolProfile),
         watchedByCount: 0
@@ -265,9 +275,7 @@ export class SymbolProfileService {
           (item.SymbolProfileOverrides.sectors as unknown as Sector[])?.length >
           0
         ) {
-          item.sectors = this.getSectors(
-            item.SymbolProfileOverrides.sectors as unknown as Prisma.JsonArray
-          );
+          item.sectors = this.getSectors(sectorBreakdown as any);
         }
 
         item.url = item.SymbolProfileOverrides.url ?? item.url;

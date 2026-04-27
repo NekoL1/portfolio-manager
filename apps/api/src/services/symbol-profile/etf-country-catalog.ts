@@ -122,6 +122,23 @@ export const ETF_COUNTRY_CATALOG: Record<string, EtfCountryCatalogEntry> = {
     ],
     source: 'Trackinsight EEMV exposure data (accessed 2026-04-22)'
   },
+  'YAHOO:FINN.NE': {
+    asOf: '2026-04-24',
+    countries: [
+      { code: 'US', source: SOURCE_CATALOG, weight: 0.7786 },
+      { code: 'TW', source: SOURCE_CATALOG, weight: 0.0473 },
+      { code: 'CA', source: SOURCE_CATALOG, weight: 0.046 },
+      { code: 'DE', source: SOURCE_CATALOG, weight: 0.0204 },
+      { code: 'CN', source: SOURCE_CATALOG, weight: 0.02 },
+      { code: 'IT', source: SOURCE_CATALOG, weight: 0.0156 },
+      { code: 'GB', source: SOURCE_CATALOG, weight: 0.014 },
+      { code: 'JP', source: SOURCE_CATALOG, weight: 0.0134 },
+      { code: 'NL', source: SOURCE_CATALOG, weight: 0.0106 },
+      { code: OTHER_KEY, source: SOURCE_CATALOG, weight: 0.0341 }
+    ],
+    source:
+      'Fidelity Global Innovators ETF (FINN) ETF facts geographic mix as of 2025-06-30, published by Fidelity Investments Canada and accessed 2026-04-24'
+  },
   'YAHOO:IGV': {
     asOf: '2026-04-22',
     countries: [

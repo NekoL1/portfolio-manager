@@ -30,6 +30,71 @@
     }
   }
 
+  .breakdown-table {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .breakdown-table__head,
+  .breakdown-table__row {
+    align-items: center;
+    column-gap: 1rem;
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1.7fr) minmax(7rem, 1fr) minmax(
+        5.5rem,
+        0.8fr
+      );
+  }
+
+  .breakdown-table__head {
+    color: rgb(var(--palette-foreground-secondary));
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0 0 0.5rem;
+  }
+
+  .breakdown-table__row {
+    border-top: 1px solid rgb(var(--palette-divider));
+    min-height: 2.75rem;
+    padding: 0.6rem 0;
+  }
+
+  .breakdown-table__rank {
+    color: rgb(var(--palette-foreground-secondary));
+    font-variant-numeric: tabular-nums;
+  }
+
+  .breakdown-table__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .breakdown-table__value {
+    display: flex;
+    font-variant-numeric: tabular-nums;
+    justify-content: flex-end;
+    min-width: 0;
+    text-align: right;
+  }
+
+  @media (max-width: 767.98px) {
+    .breakdown-table__head,
+    .breakdown-table__row {
+      column-gap: 0.75rem;
+      grid-template-columns: 2.5rem minmax(0, 1.5fr) minmax(6rem, 1fr) minmax(
+          4.75rem,
+          0.8fr
+        );
+    }
+
+    .breakdown-table__head {
+      font-size: 0.75rem;
+    }
+  }
+
   .mat-mdc-progress-bar {
     --mat-progress-bar-active-indicator-height: 0.5rem;
     --mat-progress-bar-track-height: 0.5rem;
@@ -44,6 +109,18 @@
 }
 
 :host-context(.theme-dark) {
+  .breakdown-table__head {
+    color: rgb(var(--palette-foreground-secondary-dark));
+  }
+
+  .breakdown-table__row {
+    border-top-color: rgb(var(--palette-divider-dark));
+  }
+
+  .breakdown-table__rank {
+    color: rgb(var(--palette-foreground-secondary-dark));
+  }
+
   .mat-mdc-progress-bar {
     ::ng-deep {
       .mdc-linear-progress__buffer-bar {

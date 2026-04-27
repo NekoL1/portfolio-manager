@@ -280,6 +280,12 @@ export abstract class PortfolioCalculator {
     }
 
     const endDateString = format(this.endDate, DATE_FORMAT);
+    const availableMarketDates = sortBy(
+      Object.keys(marketSymbolMap),
+      (date) => {
+        return date;
+      }
+    );
 
     const daysInMarket = differenceInDays(this.endDate, this.startDate);
 
@@ -346,13 +352,33 @@ export abstract class PortfolioCalculator {
     } = {};
 
     for (const item of lastTransactionPoint.items) {
-      const marketPriceInBaseCurrency = (
-        marketSymbolMap[endDateString]?.[item.symbol] ?? item.averagePrice
-      ).mul(
+      const currentMarketPrice =
+        marketSymbolMap[endDateString]?.[item.symbol] ?? item.averagePrice;
+      const exchangeRate =
         exchangeRatesByCurrency[`${item.currency}${this.currency}`]?.[
           endDateString
-        ] ?? 1
-      );
+        ] ?? 1;
+      const previousClose = this.getPreviousClose({
+        availableMarketDates,
+        currentDate: endDateString,
+        marketSymbolMap,
+        symbol: item.symbol
+      });
+      const marketPriceInBaseCurrency = currentMarketPrice.mul(exchangeRate);
+      const marketChange = previousClose
+        ? currentMarketPrice
+            .minus(previousClose)
+            .mul(item.quantity)
+            .mul(exchangeRate)
+            .toNumber()
+        : 0;
+      const marketChangePercent =
+        previousClose && previousClose.gt(0)
+          ? currentMarketPrice
+              .minus(previousClose)
+              .div(previousClose)
+              .toNumber()
+          : 0;
 
       const {
         currentValues,
@@ -439,8 +465,9 @@ export abstract class PortfolioCalculator {
         includeInHoldings: item.includeInHoldings,
         investment: totalInvestment,
         investmentWithCurrencyEffect: totalInvestmentWithCurrencyEffect,
-        marketPrice:
-          marketSymbolMap[endDateString]?.[item.symbol]?.toNumber() ?? 1,
+        marketChange,
+        marketChangePercent,
+        marketPrice: currentMarketPrice.toNumber(),
         marketPriceInBaseCurrency: marketPriceInBaseCurrency?.toNumber() ?? 1,
         netPerformance: !hasErrors ? (netPerformance ?? null) : null,
         netPerformancePercentage: !hasErrors
@@ -660,6 +687,36 @@ export abstract class PortfolioCalculator {
       hasErrors: hasAnySymbolMetricsErrors || overall.hasErrors,
       positions: positionsIncludedInHoldings
     };
+  }
+
+  private getPreviousClose({
+    availableMarketDates,
+    currentDate,
+    marketSymbolMap,
+    symbol
+  }: {
+    availableMarketDates: string[];
+    currentDate: string;
+    marketSymbolMap: {
+      [date: string]: { [symbol: string]: Big };
+    };
+    symbol: string;
+  }): Big | undefined {
+    for (let i = availableMarketDates.length - 1; i >= 0; i--) {
+      const date = availableMarketDates[i];
+
+      if (date >= currentDate) {
+        continue;
+      }
+
+      const marketPrice = marketSymbolMap[date]?.[symbol];
+
+      if (marketPrice?.gt(0)) {
+        return marketPrice;
+      }
+    }
+
+    return undefined;
   }
 
   protected abstract getPerformanceCalculationType(): PerformanceCalculationType;

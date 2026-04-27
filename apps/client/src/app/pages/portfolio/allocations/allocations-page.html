@@ -25,11 +25,9 @@
         <mat-card-content>
           <mat-progress-bar
             mode="determinate"
-            [title]="
-              `${(
-                portfolioDetails?.summary?.filteredValueInPercentage * 100
-              ).toFixed(2)}%`
-            "
+            [title]="`${(
+              portfolioDetails?.summary?.filteredValueInPercentage * 100
+            ).toFixed(2)}%`"
             [value]="portfolioDetails?.summary?.filteredValueInPercentage * 100"
           />
         </mat-card-content>
@@ -318,6 +316,86 @@
             [keys]="['etfProvider']"
             [locale]="user?.settings?.locale"
           />
+        </mat-card-content>
+      </mat-card>
+    </div>
+    <div class="col-md-6">
+      <mat-card appearance="outlined" class="mb-3">
+        <mat-card-header class="overflow-hidden w-100">
+          <mat-card-title class="align-items-center d-flex text-truncate">
+            <span i18n>Top 13 Sectors</span>
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="breakdown-table">
+            <div class="breakdown-table__head">
+              <span i18n>Rank</span>
+              <span i18n>Sector</span>
+              <span class="text-right" i18n>Value</span>
+              <span class="text-right" i18n>Weight</span>
+            </div>
+            @for (
+              row of sectorBreakdownRows;
+              track row.name;
+              let index = $index
+            ) {
+              <div class="breakdown-table__row">
+                <span class="breakdown-table__rank">{{ index + 1 }}</span>
+                <span class="breakdown-table__name">{{ row.name }}</span>
+                <span class="breakdown-table__value">
+                  <gf-value
+                    [isPercent]="
+                      hasImpersonationId || user.settings.isRestrictedView
+                    "
+                    [value]="row.value"
+                  />
+                </span>
+                <span class="breakdown-table__value">
+                  <gf-value [isPercent]="true" [value]="row.percentage" />
+                </span>
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+    <div class="col-md-6">
+      <mat-card appearance="outlined" class="mb-3">
+        <mat-card-header class="overflow-hidden w-100">
+          <mat-card-title class="align-items-center d-flex text-truncate">
+            <span i18n>Top 15 Countries</span>
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="breakdown-table">
+            <div class="breakdown-table__head">
+              <span i18n>Rank</span>
+              <span i18n>Country</span>
+              <span class="text-right" i18n>Value</span>
+              <span class="text-right" i18n>Weight</span>
+            </div>
+            @for (
+              row of countryBreakdownRows;
+              track row.name;
+              let index = $index
+            ) {
+              <div class="breakdown-table__row">
+                <span class="breakdown-table__rank">{{ index + 1 }}</span>
+                <span class="breakdown-table__name">{{ row.name }}</span>
+                <span class="breakdown-table__value">
+                  <gf-value
+                    [isPercent]="
+                      hasImpersonationId || user.settings.isRestrictedView
+                    "
+                    [value]="row.value"
+                  />
+                </span>
+                <span class="breakdown-table__value">
+                  <gf-value [isPercent]="true" [value]="row.percentage" />
+                </span>
+              </div>
+            }
+          </div>
         </mat-card-content>
       </mat-card>
     </div>

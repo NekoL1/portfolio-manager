@@ -87,11 +87,7 @@ export class GfTreemapChartComponent
   }
 
   private getPerformancePercent(position: PortfolioPosition) {
-    return (
-      Math.round(
-        (position.netPerformancePercentWithCurrencyEffect ?? 0) * 10000
-      ) / 100
-    );
+    return Math.round((position.marketChangePercent ?? 0) * 10000) / 100;
   }
 
   private getPrimaryLabel(position: PortfolioPosition) {
@@ -502,7 +498,7 @@ export class GfTreemapChartComponent
               })} ${this.baseCurrency}`,
               '',
               $localize`Change` + ' (' + $localize`Performance` + ')',
-              `${sign}${position.netPerformanceWithCurrencyEffect.toLocaleString(
+              `${sign}${(position.marketChange ?? 0).toLocaleString(
                 this.locale,
                 {
                   maximumFractionDigits: 2,

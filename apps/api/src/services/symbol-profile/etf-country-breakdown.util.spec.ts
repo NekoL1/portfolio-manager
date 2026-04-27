@@ -67,6 +67,21 @@ describe('ETF country breakdown resolver', () => {
     expect(result.countries.some(({ code }) => code === 'OTHER')).toBe(true);
   });
 
+  it('uses the curated catalog for FINN.NE when provider countries are missing', () => {
+    const result = resolveStoredCountryBreakdown({
+      assetSubClass: 'ETF',
+      dataSource: DataSource.YAHOO,
+      symbol: 'FINN.NE'
+    });
+
+    expect(result.countryBreakdownSource).toEqual('CATALOG');
+    expect(result.geographicAllocationKind).toEqual('COUNTRIES');
+    expect(result.countries.some(({ code }) => code === 'US')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'TW')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'CA')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'OTHER')).toBe(true);
+  });
+
   it('uses the curated catalog for XSU.TO instead of leaving it unknown', () => {
     const result = resolveStoredCountryBreakdown({
       assetSubClass: 'ETF',

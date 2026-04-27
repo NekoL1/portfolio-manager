@@ -61,6 +61,8 @@ export class TimelinePosition {
   @Type(() => Big)
   investmentWithCurrencyEffect: Big;
 
+  marketChange: number;
+  marketChangePercent: number;
   marketPrice: number;
   marketPriceInBaseCurrency: number;
 

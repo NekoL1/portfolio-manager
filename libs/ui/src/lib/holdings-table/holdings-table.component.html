@@ -161,22 +161,16 @@
         *matHeaderCellDef
         class="justify-content-end px-1"
         mat-header-cell
-        mat-sort-header="netPerformanceWithCurrencyEffect"
+        mat-sort-header="marketChange"
       >
         <ng-container i18n>Change</ng-container>
       </th>
       <td *matCellDef="let element" class="px-1" mat-cell>
         <div class="d-flex justify-content-end">
-          <span
-            [ngClass]="
-              getPerformanceValueClass(element.netPerformanceWithCurrencyEffect)
-            "
-          >
+          <span [ngClass]="getPerformanceValueClass(element.marketChange)">
             {{
               formatSignedMoneyValue(
-                isLoading()
-                  ? undefined
-                  : element.netPerformanceWithCurrencyEffect
+                isLoading() ? undefined : element.marketChange
               )
             }}
           </span>
@@ -189,7 +183,7 @@
         *matHeaderCellDef
         class="justify-content-end px-1"
         mat-header-cell
-        mat-sort-header="netPerformancePercentWithCurrencyEffect"
+        mat-sort-header="marketChangePercent"
       >
         <span class="d-none d-sm-block" i18n>Performance</span>
         <span class="d-block d-sm-none" title="Performance">±</span>
@@ -200,11 +194,7 @@
             [colorizeSign]="true"
             [isPercent]="true"
             [locale]="locale()"
-            [value]="
-              isLoading()
-                ? undefined
-                : element.netPerformancePercentWithCurrencyEffect
-            "
+            [value]="isLoading() ? undefined : element.marketChangePercent"
           />
         </div>
       </td>
