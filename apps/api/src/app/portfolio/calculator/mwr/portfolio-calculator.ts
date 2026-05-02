@@ -23,17 +23,19 @@ export class MwrPortfolioCalculator extends RoaiPortfolioCalculator {
       return { chart: [] };
     }
 
-    const baselinePoint = await this.getHistoricalDataPointBefore({
-      date: start
-    });
-    const rangeStartPoint = baselinePoint ?? historicalData[0];
+    const rangeStartPoint = historicalData[0];
     const rangeStartDate = endOfDay(parseISO(rangeStartPoint.date));
+    const rangeStartValue =
+      rangeStartPoint.netWorth ?? rangeStartPoint.valueWithCurrencyEffect;
     const cashFlows = await this.getPortfolioCashFlows({
       end,
-      start: baselinePoint ? parseISO(baselinePoint.date) : start
+      start
     });
 
     const chart = historicalData.map((historicalDataItem) => {
+      const currentValue =
+        historicalDataItem.netWorth ??
+        historicalDataItem.valueWithCurrencyEffect;
       const datedCashFlows = this.getDatedCashFlows({
         cashFlows,
         endDate: endOfDay(parseISO(historicalDataItem.date)),
@@ -41,15 +43,15 @@ export class MwrPortfolioCalculator extends RoaiPortfolioCalculator {
       });
       const netPerformanceWithCurrencyEffect = getNetPerformance({
         cashFlows: datedCashFlows,
-        endValue: historicalDataItem.valueWithCurrencyEffect,
-        startValue: rangeStartPoint.valueWithCurrencyEffect
+        endValue: currentValue,
+        startValue: rangeStartValue
       });
       const moneyWeightedReturn = calculateMoneyWeightedReturn({
         cashFlows: datedCashFlows,
         endDate: endOfDay(parseISO(historicalDataItem.date)),
-        endValue: historicalDataItem.valueWithCurrencyEffect,
+        endValue: currentValue,
         startDate: rangeStartDate,
-        startValue: rangeStartPoint.valueWithCurrencyEffect
+        startValue: rangeStartValue
       });
 
       return {
@@ -57,6 +59,7 @@ export class MwrPortfolioCalculator extends RoaiPortfolioCalculator {
         netPerformance: netPerformanceWithCurrencyEffect,
         netPerformanceInPercentage: moneyWeightedReturn,
         netPerformanceInPercentageWithCurrencyEffect: moneyWeightedReturn,
+        valueWithCurrencyEffect: currentValue,
         netPerformanceWithCurrencyEffect
       };
     });

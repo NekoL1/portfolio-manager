@@ -6,10 +6,18 @@
   @if (viewModeFormControl.value === 'TABLE') {
     <div class="holdings-page-header">
       <div>
-        <h1 class="page-title" i18n>Holdings</h1>
-        <p class="page-subtitle" i18n>
-          Explore your portfolio as either a table or a visual allocation map.
-        </p>
+        @if (holdingType === 'SOLD') {
+          <h1 class="page-title" i18n>Sold Holdings</h1>
+          <p class="page-subtitle" i18n>
+            Review each sold ticker with FIFO-matched cost basis and realized
+            gain.
+          </p>
+        } @else {
+          <h1 class="page-title" i18n>Holdings</h1>
+          <p class="page-subtitle" i18n>
+            Explore your portfolio as either a table or a visual allocation map.
+          </p>
+        }
       </div>
       <div class="page-controls">
         <div class="d-none d-lg-block view-mode-toggle">
@@ -114,7 +122,9 @@
   >
     <gf-holdings-table
       [baseCurrency]="user?.settings?.baseCurrency"
+      [dateRange]="user?.settings?.dateRange"
       [holdings]="holdings"
+      [holdingType]="holdingType"
       [locale]="user?.settings?.locale"
       (holdingClicked)="onHoldingClicked($event)"
     />

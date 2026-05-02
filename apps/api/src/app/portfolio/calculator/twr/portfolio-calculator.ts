@@ -23,24 +23,24 @@ export class TwrPortfolioCalculator extends RoaiPortfolioCalculator {
       return { chart: [] };
     }
 
-    const baselinePoint = await this.getHistoricalDataPointBefore({
-      date: start
-    });
     const cashFlowsByDate = await this.getPortfolioCashFlowsByDate({
       end,
-      start: baselinePoint ? parseISO(baselinePoint.date) : start
+      start
     });
-    const rangeStartPoint = baselinePoint ?? historicalData[0];
-    const performancePoints = baselinePoint
-      ? [baselinePoint, ...historicalData]
-      : historicalData;
+    const rangeStartPoint = historicalData[0];
+    const performancePoints = historicalData;
     const cashFlows = await this.getPortfolioCashFlows({
       end,
-      start: baselinePoint ? parseISO(baselinePoint.date) : start
+      start
     });
     const startBoundary = endOfDay(parseISO(rangeStartPoint.date));
+    const rangeStartValue =
+      rangeStartPoint.netWorth ?? rangeStartPoint.valueWithCurrencyEffect;
 
     const chart = historicalData.map((historicalDataItem) => {
+      const currentValue =
+        historicalDataItem.netWorth ??
+        historicalDataItem.valueWithCurrencyEffect;
       const chartSlice = performancePoints.filter(({ date }) => {
         return date <= historicalDataItem.date;
       });
@@ -51,17 +51,19 @@ export class TwrPortfolioCalculator extends RoaiPortfolioCalculator {
       });
       const netPerformanceWithCurrencyEffect = getNetPerformance({
         cashFlows: datedCashFlows,
-        endValue: historicalDataItem.valueWithCurrencyEffect,
-        startValue: rangeStartPoint.valueWithCurrencyEffect
+        endValue: currentValue,
+        startValue: rangeStartValue
       });
       const timeWeightedReturn = calculateTimeWeightedReturn({
         cashFlowsByDate,
-        points: chartSlice.map(({ date, valueWithCurrencyEffect }) => {
-          return {
-            date,
-            value: valueWithCurrencyEffect
-          };
-        })
+        points: chartSlice.map(
+          ({ date, netWorth, valueWithCurrencyEffect }) => {
+            return {
+              date,
+              value: netWorth ?? valueWithCurrencyEffect
+            };
+          }
+        )
       });
 
       return {
@@ -69,6 +71,7 @@ export class TwrPortfolioCalculator extends RoaiPortfolioCalculator {
         netPerformance: netPerformanceWithCurrencyEffect,
         netPerformanceInPercentage: timeWeightedReturn,
         netPerformanceInPercentageWithCurrencyEffect: timeWeightedReturn,
+        valueWithCurrencyEffect: currentValue,
         netPerformanceWithCurrencyEffect
       };
     });

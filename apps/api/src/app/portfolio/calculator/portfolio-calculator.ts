@@ -121,6 +121,7 @@ export abstract class PortfolioCalculator {
     this.activities = activities
       .map(
         ({
+          currency,
           date,
           feeInAssetProfileCurrency,
           feeInBaseCurrency,
@@ -144,6 +145,7 @@ export abstract class PortfolioCalculator {
 
           return {
             SymbolProfile,
+            currency,
             tags,
             type,
             date: format(effectiveDate, DATE_FORMAT),
@@ -308,6 +310,11 @@ export abstract class PortfolioCalculator {
     const chartDates = sortBy(Object.keys(chartDateMap), (chartDate) => {
       return chartDate;
     });
+    const contributionValuesByDate =
+      await this.getPortfolioContributionValuesByDate({
+        chartDates,
+        end: this.endDate
+      });
 
     if (firstIndex > 0) {
       firstIndex--;
@@ -365,18 +372,25 @@ export abstract class PortfolioCalculator {
         symbol: item.symbol
       });
       const marketPriceInBaseCurrency = currentMarketPrice.mul(exchangeRate);
+      const previousCloseExchangeRate = previousClose
+        ? (exchangeRatesByCurrency[`${item.currency}${this.currency}`]?.[
+            previousClose.date
+          ] ?? exchangeRate)
+        : exchangeRate;
+      const previousCloseInBaseCurrency = previousClose?.marketPrice?.mul(
+        previousCloseExchangeRate
+      );
       const marketChange = previousClose
-        ? currentMarketPrice
-            .minus(previousClose)
+        ? marketPriceInBaseCurrency
+            .minus(previousCloseInBaseCurrency)
             .mul(item.quantity)
-            .mul(exchangeRate)
             .toNumber()
         : 0;
       const marketChangePercent =
-        previousClose && previousClose.gt(0)
-          ? currentMarketPrice
-              .minus(previousClose)
-              .div(previousClose)
+        previousCloseInBaseCurrency && previousCloseInBaseCurrency.gt(0)
+          ? marketPriceInBaseCurrency
+              .minus(previousCloseInBaseCurrency)
+              .div(previousCloseInBaseCurrency)
               .toNumber()
           : 0;
 
@@ -514,10 +528,15 @@ export abstract class PortfolioCalculator {
       },
       {} as { [date: string]: Big }
     );
+    const hasAccountBalanceItems = this.accountBalanceItems.length > 0;
+    const { availableCashByDate } = await this.getPortfolioContributionState({
+      end: this.endDate
+    });
 
     const accountBalanceMap: { [date: string]: Big } = {};
 
     let lastKnownBalance = new Big(0);
+    let lastKnownDerivedCashBalance = new Big(0);
 
     for (const dateString of chartDates) {
       if (accountBalanceItemsMap[dateString] !== undefined) {
@@ -525,8 +544,17 @@ export abstract class PortfolioCalculator {
         lastKnownBalance = accountBalanceItemsMap[dateString];
       }
 
-      // Add the most recent balance to the accountBalanceMap
-      accountBalanceMap[dateString] = lastKnownBalance;
+      if (availableCashByDate[dateString] !== undefined) {
+        lastKnownDerivedCashBalance = availableCashByDate[dateString];
+      }
+
+      // Add the most recent balance to the accountBalanceMap. If the user does
+      // not maintain explicit account balances, fall back to internally
+      // derived trading cash so realized gains and sale proceeds remain in the
+      // portfolio value.
+      accountBalanceMap[dateString] = hasAccountBalanceItems
+        ? lastKnownBalance
+        : lastKnownDerivedCashBalance;
 
       for (const symbol of Object.keys(valuesBySymbol)) {
         const symbolValues = valuesBySymbol[symbol];
@@ -619,7 +647,6 @@ export abstract class PortfolioCalculator {
     ).map(([date, values]) => {
       const {
         investmentValueWithCurrencyEffect,
-        netContributionValueWithCurrencyEffect,
         totalAccountBalanceWithCurrencyEffect,
         totalCurrentValue,
         totalCurrentValueWithCurrencyEffect,
@@ -651,7 +678,7 @@ export abstract class PortfolioCalculator {
         investmentValueWithCurrencyEffect:
           investmentValueWithCurrencyEffect.toNumber(),
         netContributionValueWithCurrencyEffect:
-          netContributionValueWithCurrencyEffect.toNumber(),
+          contributionValuesByDate[date]?.toNumber() ?? 0,
         netPerformance: totalNetPerformanceValue.toNumber(),
         netPerformanceWithCurrencyEffect:
           totalNetPerformanceValueWithCurrencyEffect.toNumber(),
@@ -701,7 +728,12 @@ export abstract class PortfolioCalculator {
       [date: string]: { [symbol: string]: Big };
     };
     symbol: string;
-  }): Big | undefined {
+  }):
+    | {
+        date: string;
+        marketPrice: Big;
+      }
+    | undefined {
     for (let i = availableMarketDates.length - 1; i >= 0; i--) {
       const date = availableMarketDates[i];
 
@@ -712,7 +744,7 @@ export abstract class PortfolioCalculator {
       const marketPrice = marketSymbolMap[date]?.[symbol];
 
       if (marketPrice?.gt(0)) {
-        return marketPrice;
+        return { date, marketPrice };
       }
     }
 
@@ -904,11 +936,69 @@ export abstract class PortfolioCalculator {
     end: Date;
     start: Date;
   }): Promise<DatedCashFlow[]> {
+    const { cashFlows } = await this.getPortfolioContributionState({ end });
+
+    return cashFlows
+      .filter(({ amount, date }) => {
+        const cashFlowDate = parseDate(date);
+
+        return (
+          Math.abs(amount) > Number.EPSILON &&
+          isAfter(cashFlowDate, start) &&
+          !isAfter(cashFlowDate, end)
+        );
+      })
+      .sort(({ date: leftDate }, { date: rightDate }) => {
+        return leftDate.localeCompare(rightDate);
+      })
+      .map(({ amount, date }) => {
+        return { amount, date };
+      });
+  }
+
+  private async getPortfolioContributionValuesByDate({
+    chartDates,
+    end
+  }: {
+    chartDates: string[];
+    end: Date;
+  }): Promise<{ [date: string]: Big }> {
+    const { contributionValuesByDate } =
+      await this.getPortfolioContributionState({
+        end
+      });
+    const contributionValuesAtChartDates: { [date: string]: Big } = {};
+    let lastKnownContribution = new Big(0);
+
+    for (const chartDate of chartDates) {
+      if (contributionValuesByDate[chartDate] !== undefined) {
+        lastKnownContribution = contributionValuesByDate[chartDate];
+      }
+
+      contributionValuesAtChartDates[chartDate] = lastKnownContribution;
+    }
+
+    return contributionValuesAtChartDates;
+  }
+
+  private async getPortfolioContributionState({ end }: { end: Date }): Promise<{
+    availableCashByDate: { [date: string]: Big };
+    cashFlows: DatedCashFlow[];
+    contributionValuesByDate: { [date: string]: Big };
+  }> {
+    const sortedActivities = [...this.activities].sort((left, right) => {
+      const leftDateTime = left.dateTime ?? parseDate(left.date).toISOString();
+      const rightDateTime =
+        right.dateTime ?? parseDate(right.date).toISOString();
+
+      return leftDateTime.localeCompare(rightDateTime);
+    });
+
     const currencies = Array.from(
       new Set(
-        this.activities
-          .map(({ SymbolProfile }) => {
-            return SymbolProfile?.currency;
+        sortedActivities
+          .map(({ currency, SymbolProfile }) => {
+            return currency ?? SymbolProfile?.currency;
           })
           .filter(Boolean)
       )
@@ -918,56 +1008,81 @@ export abstract class PortfolioCalculator {
       await this.exchangeRateDataService.getExchangeRatesByCurrency({
         currencies,
         endDate: end,
-        startDate: start,
+        startDate: this.getStartDate(),
         targetCurrency: this.currency
       });
 
     const cashFlows: DatedCashFlow[] = [];
+    const availableCashByDate: { [date: string]: Big } = {};
+    const contributionValuesByDate: { [date: string]: Big } = {};
+    let availableCash = new Big(0);
+    let totalExternalContribution = new Big(0);
 
-    for (const activity of this.activities) {
+    for (const activity of sortedActivities) {
       const activityDate = parseDate(activity.date);
 
-      if (isBefore(activityDate, start) || isAfter(activityDate, end)) {
+      if (isAfter(activityDate, end)) {
         continue;
       }
 
-      const activityCurrency = activity.SymbolProfile?.currency;
+      const activityCurrency =
+        activity.currency ?? activity.SymbolProfile?.currency ?? this.currency;
       const exchangeRate =
         exchangeRatesByCurrency[`${activityCurrency}${this.currency}`]?.[
           activity.date
         ] ?? 1;
-      const grossAmount = activity.quantity.mul(activity.unitPrice).toNumber();
-      const grossAmountInBaseCurrency = grossAmount * exchangeRate;
-      const feeInBaseCurrency = activity.feeInBaseCurrency?.toNumber() ?? 0;
-
-      let cashFlow = 0;
+      const grossAmountInBaseCurrency = activity.quantity
+        .mul(activity.unitPrice)
+        .mul(exchangeRate);
+      const feeInBaseCurrency = activity.feeInBaseCurrency ?? new Big(0);
+      const activityDateTime =
+        activity.dateTime ?? parseDate(activity.date).toISOString();
 
       switch (activity.type) {
         case 'BUY':
-          cashFlow = grossAmountInBaseCurrency + feeInBaseCurrency;
+        case 'FEE': {
+          const requiredCash =
+            grossAmountInBaseCurrency.plus(feeInBaseCurrency);
+          const externalContribution = requiredCash.minus(availableCash);
+
+          if (externalContribution.gt(0)) {
+            totalExternalContribution =
+              totalExternalContribution.plus(externalContribution);
+            cashFlows.push({
+              amount: externalContribution.toNumber(),
+              date: activityDateTime
+            });
+            availableCash = new Big(0);
+          } else {
+            availableCash = availableCash.minus(requiredCash);
+          }
+
           break;
+        }
         case 'SELL':
-          cashFlow = -(grossAmountInBaseCurrency - feeInBaseCurrency);
+          availableCash = availableCash.plus(
+            grossAmountInBaseCurrency.minus(feeInBaseCurrency)
+          );
           break;
         case 'DIVIDEND':
         case 'INTEREST':
-          cashFlow = -grossAmountInBaseCurrency;
+          availableCash = availableCash.plus(grossAmountInBaseCurrency);
           break;
         default:
           break;
       }
 
-      if (Math.abs(cashFlow) > Number.EPSILON) {
-        cashFlows.push({
-          amount: cashFlow,
-          date: activity.dateTime
-        });
-      }
+      contributionValuesByDate[activity.date] = totalExternalContribution;
+      availableCashByDate[activity.date] = availableCash;
     }
 
-    return cashFlows.sort(({ date: leftDate }, { date: rightDate }) => {
-      return leftDate.localeCompare(rightDate);
-    });
+    return {
+      availableCashByDate,
+      cashFlows: cashFlows.sort(({ date: leftDate }, { date: rightDate }) => {
+        return leftDate.localeCompare(rightDate);
+      }),
+      contributionValuesByDate
+    };
   }
 
   protected async getPortfolioCashFlowsByDate({

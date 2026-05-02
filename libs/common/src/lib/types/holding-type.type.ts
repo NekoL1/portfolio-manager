@@ -1,1 +1,1 @@
-export type HoldingType = 'ACTIVE' | 'CLOSED';
+export type HoldingType = 'ACTIVE' | 'SOLD';

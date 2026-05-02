@@ -64,7 +64,7 @@ export class GfHomeHoldingsComponent implements OnInit {
   public holdingType: HoldingType = 'ACTIVE';
   public holdingTypeOptions: ToggleOption[] = [
     { label: $localize`Active`, value: 'ACTIVE' },
-    { label: $localize`Closed`, value: 'CLOSED' }
+    { label: $localize`Sold`, value: 'SOLD' }
   ];
   public readonly chartLegendItems = [
     { color: '#ee766a', label: '≤ -3' },
@@ -194,8 +194,8 @@ export class GfHomeHoldingsComponent implements OnInit {
   private getHoldingsRequestParams() {
     const filters = this.userService.getFilters();
 
-    if (this.holdingType === 'CLOSED') {
-      filters.push({ id: 'CLOSED', type: 'HOLDING_TYPE' });
+    if (this.holdingType === 'SOLD') {
+      filters.push({ id: 'SOLD', type: 'HOLDING_TYPE' });
     }
 
     return {
@@ -222,7 +222,7 @@ export class GfHomeHoldingsComponent implements OnInit {
               GfHomeHoldingsComponent.DEFAULT_HOLDINGS_VIEW_MODE,
         { emitEvent: false }
       );
-    } else if (this.holdingType === 'CLOSED') {
+    } else if (this.holdingType === 'SOLD') {
       this.viewModeFormControl.setValue(
         GfHomeHoldingsComponent.DEFAULT_HOLDINGS_VIEW_MODE,
         { emitEvent: false }

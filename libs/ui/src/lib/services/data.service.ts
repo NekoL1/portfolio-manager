@@ -781,6 +781,12 @@ export class DataService {
           );
         }
 
+        if (holding.dateOfLastSale) {
+          holding.dateOfLastSale = parseISO(
+            holding.dateOfLastSale as unknown as string
+          );
+        }
+
         const holdingWithValue = holding as PortfolioPosition & {
           value?: number;
         };

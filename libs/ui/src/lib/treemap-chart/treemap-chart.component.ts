@@ -86,8 +86,19 @@ export class GfTreemapChartComponent
     this.getTooltipElement()?.remove();
   }
 
+  private getPerformanceValue(position: PortfolioPosition) {
+    return this.dateRange === '1d'
+      ? (position.marketChange ?? 0)
+      : (position.netPerformanceWithCurrencyEffect ?? 0);
+  }
+
   private getPerformancePercent(position: PortfolioPosition) {
-    return Math.round((position.marketChangePercent ?? 0) * 10000) / 100;
+    const performancePercent =
+      this.dateRange === '1d'
+        ? (position.marketChangePercent ?? 0)
+        : (position.netPerformancePercentWithCurrencyEffect ?? 0);
+
+    return Math.round(performancePercent * 10000) / 100;
   }
 
   private getPrimaryLabel(position: PortfolioPosition) {
@@ -208,6 +219,7 @@ export class GfTreemapChartComponent
     const performanceArrow =
       performancePercent > 0 ? '↑' : performancePercent < 0 ? '↓' : '•';
     const performanceValue = `${performanceArrow}${Math.abs(performancePercent).toFixed(2)}%`;
+    const performanceAmount = this.getPerformanceValue(position);
     const quantityLabel = `${this.formatQuantity(position.quantity)} ${this.getShareLabel(position.quantity)}`;
     const priceCurrency =
       position.assetProfile?.currency || position.currency || this.baseCurrency;
@@ -229,6 +241,10 @@ export class GfTreemapChartComponent
         </div>
       </div>
       <div class="${TREEMAP_TOOLTIP_CLASS_NAME}__divider"></div>
+      <div class="${TREEMAP_TOOLTIP_CLASS_NAME}__row">
+        <span>Change</span>
+        <strong>${this.escapeHtml(this.formatCurrency(performanceAmount, this.baseCurrency))}</strong>
+      </div>
       <div class="${TREEMAP_TOOLTIP_CLASS_NAME}__row">
         <span>In your portfolio</span>
         <strong>${this.escapeHtml(allocationInPercentage)}</strong>

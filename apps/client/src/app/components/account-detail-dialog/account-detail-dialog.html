@@ -103,6 +103,7 @@
         </ng-template>
         <gf-holdings-table
           [baseCurrency]="user?.settings?.baseCurrency"
+          [dateRange]="user?.settings?.dateRange"
           [hasPermissionToOpenDetails]="false"
           [holdings]="holdings"
           [locale]="user?.settings?.locale"

@@ -7,6 +7,7 @@ import {
   AssetProfileIdentifier,
   PortfolioPosition
 } from '@ghostfolio/common/interfaces';
+import { DateRange, HoldingType } from '@ghostfolio/common/types';
 
 import { CommonModule } from '@angular/common';
 import {
@@ -53,10 +54,12 @@ export class GfHoldingsTableComponent {
   public readonly hasPermissionToOpenDetails = input(true);
   public readonly hasPermissionToShowQuantities = input(true);
   public readonly hasPermissionToShowValues = input(true);
+  public readonly holdingType = input<HoldingType>('ACTIVE');
   public readonly holdings = input.required<PortfolioPosition[]>();
   public readonly locale = input(getLocale());
   public readonly pageSize = model(Number.MAX_SAFE_INTEGER);
   public readonly baseCurrency = input('');
+  public readonly dateRange = input<DateRange>('max');
 
   public readonly holdingClicked = output<AssetProfileIdentifier>();
 
@@ -66,6 +69,28 @@ export class GfHoldingsTableComponent {
   protected readonly dataSource = new MatTableDataSource<PortfolioPosition>([]);
 
   protected readonly displayedColumns = computed(() => {
+    if (this.holdingType() === 'SOLD') {
+      const columns = ['icon', 'nameWithSymbol', 'dateOfFirstActivity'];
+
+      columns.push('dateOfLastSale');
+
+      if (this.hasPermissionToShowValues()) {
+        columns.push('averageCostBasis', 'averageExitPrice');
+      }
+
+      if (this.hasPermissionToShowQuantities()) {
+        columns.push('soldQuantity');
+      }
+
+      if (this.hasPermissionToShowValues()) {
+        columns.push('realizedGain');
+      }
+
+      columns.push('realizedGainPercent');
+
+      return columns;
+    }
+
     const columns = ['icon', 'nameWithSymbol', 'dateOfFirstActivity'];
 
     if (this.hasPermissionToShowValues()) {
@@ -89,6 +114,11 @@ export class GfHoldingsTableComponent {
     columns.push('performanceInPercentage');
     return columns;
   });
+  protected readonly sortActive = computed(() => {
+    return this.holdingType() === 'SOLD'
+      ? 'dateOfLastSale'
+      : 'allocationInPercentage';
+  });
 
   protected readonly ignoreAssetSubClasses: AssetSubClass[] = [
     AssetSubClass.CASH
@@ -97,7 +127,20 @@ export class GfHoldingsTableComponent {
   protected readonly isLoading = computed(() => !this.holdings());
 
   public constructor() {
-    this.dataSource.sortingDataAccessor = getLowercase;
+    this.dataSource.sortingDataAccessor = (holding, path) => {
+      switch (path) {
+        case 'performanceValue':
+          return this.getDisplayedPerformanceValue(holding);
+        case 'performancePercentage':
+          return this.getDisplayedPerformancePercentage(holding);
+        case 'realizedGainWithCurrencyEffect':
+          return holding.netPerformanceWithCurrencyEffect ?? 0;
+        case 'realizedGainPercentWithCurrencyEffect':
+          return holding.netPerformancePercentWithCurrencyEffect ?? 0;
+        default:
+          return getLowercase(holding, path);
+      }
+    };
 
     // Reactive data update
     effect(() => {
@@ -150,12 +193,19 @@ export class GfHoldingsTableComponent {
   }
 
   protected formatSignedMoneyValue(value: number | undefined) {
+    return this.formatSignedMoneyValueForCurrency(this.baseCurrency(), value);
+  }
+
+  protected formatSignedMoneyValueForCurrency(
+    currency: string | undefined,
+    value: number | undefined
+  ) {
     if (value === undefined) {
       return '';
     }
 
     const sign = value > 0 ? '+' : value < 0 ? '-' : '';
-    const symbol = this.getMoneySymbol(this.baseCurrency()).trim();
+    const symbol = this.getMoneySymbol(currency).trim();
     const amount = Math.abs(value).toLocaleString(this.locale(), {
       maximumFractionDigits: 2,
       minimumFractionDigits: 2
@@ -179,5 +229,31 @@ export class GfHoldingsTableComponent {
     });
 
     return `${symbol}${amount}`.replace(/\s+/g, '');
+  }
+
+  protected getDisplayedPerformanceValue(position: PortfolioPosition) {
+    return this.dateRange() === '1d'
+      ? (position.marketChange ?? 0)
+      : (position.netPerformanceWithCurrencyEffect ?? 0);
+  }
+
+  protected getDisplayedPerformancePercentage(position: PortfolioPosition) {
+    return this.dateRange() === '1d'
+      ? (position.marketChangePercent ?? 0)
+      : (position.netPerformancePercentWithCurrencyEffect ?? 0);
+  }
+
+  protected getDisplayedRealizedGain(position: PortfolioPosition) {
+    return (
+      position.netPerformanceWithCurrencyEffect ?? position.realizedGain ?? 0
+    );
+  }
+
+  protected getDisplayedRealizedGainPercent(position: PortfolioPosition) {
+    return (
+      position.netPerformancePercentWithCurrencyEffect ??
+      position.realizedGainPercent ??
+      0
+    );
   }
 }

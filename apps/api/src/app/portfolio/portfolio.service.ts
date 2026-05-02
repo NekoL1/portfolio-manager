@@ -37,7 +37,12 @@ import {
   TAG_ID_EXCLUDE_FROM_ANALYSIS,
   UNKNOWN_KEY
 } from '@ghostfolio/common/config';
-import { DATE_FORMAT, getSum, parseDate } from '@ghostfolio/common/helper';
+import {
+  DATE_FORMAT,
+  getAssetProfileIdentifier,
+  getSum,
+  parseDate
+} from '@ghostfolio/common/helper';
 import {
   AccountsResponse,
   Activity,
@@ -100,6 +105,7 @@ const asiaPacificMarkets = require('../../assets/countries/asia-pacific-markets.
 const developedMarkets = require('../../assets/countries/developed-markets.json');
 const emergingMarkets = require('../../assets/countries/emerging-markets.json');
 const europeMarkets = require('../../assets/countries/europe-markets.json');
+const SOLD_HOLDING_FILTER_IDS = ['CLOSED', 'SOLD'];
 
 @Injectable()
 export class PortfolioService {
@@ -358,16 +364,33 @@ export class PortfolioService {
     userId: string;
   }) {
     userId = await this.getUserId(impersonationId, userId);
-    const { holdings: holdingsMap } = await this.getDetails({
-      dateRange,
-      filters,
-      impersonationId,
-      userId
-    });
+    const isFilteredBySoldHoldings =
+      filters?.some(({ id, type }) => {
+        return type === 'HOLDING_TYPE' && SOLD_HOLDING_FILTER_IDS.includes(id);
+      }) ?? false;
 
-    let holdings = Object.values(holdingsMap);
+    let holdings: PortfolioPosition[];
 
-    const searchQuery = filters.find(({ type }) => {
+    if (isFilteredBySoldHoldings) {
+      const user = await this.userService.user({ id: userId });
+
+      holdings = await this.getSoldHoldings({
+        filters,
+        userCurrency: this.getUserCurrency(user),
+        userId
+      });
+    } else {
+      const { holdings: holdingsMap } = await this.getDetails({
+        dateRange,
+        filters,
+        impersonationId,
+        userId
+      });
+
+      holdings = Object.values(holdingsMap);
+    }
+
+    const searchQuery = filters?.find(({ type }) => {
       return type === 'SEARCH_QUERY';
     })?.id;
 
@@ -383,6 +406,312 @@ export class PortfolioService {
     }
 
     return holdings;
+  }
+
+  private async getSoldHoldings({
+    filters,
+    userCurrency,
+    userId
+  }: {
+    filters?: Filter[];
+    userCurrency: string;
+    userId: string;
+  }): Promise<PortfolioPosition[]> {
+    const { activities } = await this.activitiesService.getActivities({
+      filters,
+      types: [ActivityType.BUY, ActivityType.SELL],
+      userCurrency,
+      userId,
+      withExcludedAccountsAndActivities: false
+    });
+
+    if (activities.length === 0) {
+      return [];
+    }
+
+    const currencies = Array.from(
+      new Set(
+        activities
+          .map(({ currency, SymbolProfile }) => {
+            return currency ?? SymbolProfile?.currency ?? userCurrency;
+          })
+          .filter(Boolean)
+      )
+    );
+    const startDate = activities.reduce((earliestDate, activity) => {
+      return isBefore(activity.date, earliestDate)
+        ? activity.date
+        : earliestDate;
+    }, activities[0].date);
+    const exchangeRatesByCurrency =
+      await this.exchangeRateDataService.getExchangeRatesByCurrency({
+        currencies,
+        startDate,
+        targetCurrency: userCurrency
+      });
+
+    const activitiesByHolding = new Map<string, Activity[]>();
+
+    for (const activity of activities) {
+      const key = getAssetProfileIdentifier({
+        dataSource: activity.SymbolProfile.dataSource,
+        symbol: activity.SymbolProfile.symbol
+      });
+
+      const currentActivities = activitiesByHolding.get(key) ?? [];
+      currentActivities.push(activity);
+      activitiesByHolding.set(key, currentActivities);
+    }
+
+    return Array.from(activitiesByHolding.values())
+      .map((holdingActivities) => {
+        return this.getSoldHoldingSummary({
+          activities: holdingActivities,
+          exchangeRatesByCurrency,
+          userCurrency
+        });
+      })
+      .filter((holding): holding is PortfolioPosition => !!holding)
+      .sort((a, b) => {
+        const dateDifference =
+          (b.dateOfLastSale?.getTime() ?? 0) -
+          (a.dateOfLastSale?.getTime() ?? 0);
+
+        if (dateDifference !== 0) {
+          return dateDifference;
+        }
+
+        return a.symbol.localeCompare(b.symbol);
+      });
+  }
+
+  private getSoldHoldingSummary({
+    activities,
+    exchangeRatesByCurrency,
+    userCurrency
+  }: {
+    activities: Activity[];
+    exchangeRatesByCurrency: {
+      [currency: string]: { [dateString: string]: number };
+    };
+    userCurrency: string;
+  }): PortfolioPosition | null {
+    if (activities.length === 0) {
+      return null;
+    }
+
+    const latestActivity = activities[activities.length - 1];
+    const buyLots: {
+      costInBaseCurrencyPerShare: Big;
+      remainingQuantity: Big;
+      unitPrice: Big;
+    }[] = [];
+    const symbolProfile = latestActivity.SymbolProfile;
+    const holdings = symbolProfile.holdings.map(
+      ({ allocationInPercentage, name }) => {
+        return {
+          allocationInPercentage,
+          name,
+          valueInBaseCurrency: 0
+        };
+      }
+    );
+    const tagsById = new Map<string, Tag>();
+    const currency = symbolProfile.currency ?? DEFAULT_CURRENCY;
+
+    let firstPurchaseDate: Date | undefined;
+    let hasSellActivity = false;
+    let lastSaleDate: Date | undefined;
+    let matchedCost = new Big(0);
+    let matchedCostInBaseCurrency = new Big(0);
+    let matchedProceeds = new Big(0);
+    let matchedProceedsInBaseCurrency = new Big(0);
+    let matchedQuantity = new Big(0);
+
+    for (const activity of activities) {
+      for (const tag of activity.tags ?? []) {
+        tagsById.set(tag.id, tag);
+      }
+
+      if (activity.type === ActivityType.BUY) {
+        firstPurchaseDate ??= activity.date;
+
+        const activityCurrency =
+          activity.currency ?? activity.SymbolProfile.currency ?? userCurrency;
+        const dateString = format(activity.date, DATE_FORMAT);
+        const exchangeRate =
+          exchangeRatesByCurrency[`${activityCurrency}${userCurrency}`]?.[
+            dateString
+          ] ?? 1;
+        const valueInBaseCurrency = Number.isFinite(
+          activity.valueInBaseCurrency
+        )
+          ? activity.valueInBaseCurrency
+          : new Big(activity.value).mul(exchangeRate).toNumber();
+        const feeInBaseCurrency = Number.isFinite(activity.feeInBaseCurrency)
+          ? activity.feeInBaseCurrency
+          : new Big(activity.fee ?? 0).mul(exchangeRate).toNumber();
+
+        buyLots.push({
+          costInBaseCurrencyPerShare:
+            activity.quantity === 0
+              ? new Big(0)
+              : new Big(valueInBaseCurrency)
+                  .plus(feeInBaseCurrency)
+                  .div(activity.quantity),
+          remainingQuantity: new Big(activity.quantity),
+          unitPrice: new Big(activity.unitPriceInAssetProfileCurrency)
+        });
+
+        continue;
+      }
+
+      if (activity.type !== ActivityType.SELL) {
+        continue;
+      }
+
+      hasSellActivity = true;
+      lastSaleDate = activity.date;
+
+      let remainingSellQuantity = new Big(activity.quantity);
+      const salePrice = new Big(activity.unitPriceInAssetProfileCurrency);
+
+      const activityCurrency =
+        activity.currency ?? activity.SymbolProfile.currency ?? userCurrency;
+      const dateString = format(activity.date, DATE_FORMAT);
+      const exchangeRate =
+        exchangeRatesByCurrency[`${activityCurrency}${userCurrency}`]?.[
+          dateString
+        ] ?? 1;
+      const valueInBaseCurrency = Number.isFinite(activity.valueInBaseCurrency)
+        ? activity.valueInBaseCurrency
+        : new Big(activity.value).mul(exchangeRate).toNumber();
+      const feeInBaseCurrency = Number.isFinite(activity.feeInBaseCurrency)
+        ? activity.feeInBaseCurrency
+        : new Big(activity.fee ?? 0).mul(exchangeRate).toNumber();
+      const saleProceedsInBaseCurrencyPerShare =
+        activity.quantity === 0
+          ? new Big(0)
+          : new Big(valueInBaseCurrency)
+              .minus(feeInBaseCurrency)
+              .div(activity.quantity);
+
+      while (remainingSellQuantity.gt(0) && buyLots.length > 0) {
+        const currentLot = buyLots[0];
+        const matchedLotQuantity = currentLot.remainingQuantity.lte(
+          remainingSellQuantity
+        )
+          ? currentLot.remainingQuantity
+          : remainingSellQuantity;
+
+        matchedCost = matchedCost.plus(
+          matchedLotQuantity.mul(currentLot.unitPrice)
+        );
+        matchedCostInBaseCurrency = matchedCostInBaseCurrency.plus(
+          matchedLotQuantity.mul(currentLot.costInBaseCurrencyPerShare)
+        );
+        matchedProceeds = matchedProceeds.plus(
+          matchedLotQuantity.mul(salePrice)
+        );
+        matchedProceedsInBaseCurrency = matchedProceedsInBaseCurrency.plus(
+          matchedLotQuantity.mul(saleProceedsInBaseCurrencyPerShare)
+        );
+        matchedQuantity = matchedQuantity.plus(matchedLotQuantity);
+
+        currentLot.remainingQuantity =
+          currentLot.remainingQuantity.minus(matchedLotQuantity);
+        remainingSellQuantity = remainingSellQuantity.minus(matchedLotQuantity);
+
+        if (currentLot.remainingQuantity.lte(0)) {
+          buyLots.shift();
+        }
+      }
+    }
+
+    if (!hasSellActivity) {
+      return null;
+    }
+
+    const realizedGain = matchedProceeds.minus(matchedCost);
+    const realizedGainWithCurrencyEffect = matchedProceedsInBaseCurrency.minus(
+      matchedCostInBaseCurrency
+    );
+    const averageCostBasis = matchedQuantity.eq(0)
+      ? 0
+      : matchedCost.div(matchedQuantity).toNumber();
+    const averageExitPrice = matchedQuantity.eq(0)
+      ? 0
+      : matchedProceeds.div(matchedQuantity).toNumber();
+    const realizedGainPercent = matchedCost.eq(0)
+      ? 0
+      : realizedGain.div(matchedCost).toNumber();
+    const realizedGainPercentWithCurrencyEffect = matchedCostInBaseCurrency.eq(
+      0
+    )
+      ? 0
+      : realizedGainWithCurrencyEffect
+          .div(matchedCostInBaseCurrency)
+          .toNumber();
+    const soldQuantity = matchedQuantity.toNumber();
+    const displayName = symbolProfile.name ?? symbolProfile.symbol;
+
+    return {
+      activitiesCount: activities.length,
+      allocationInPercentage: 0,
+      assetClass: symbolProfile.assetClass,
+      assetProfile: {
+        assetClass: symbolProfile.assetClass,
+        assetSubClass: symbolProfile.assetSubClass,
+        countries: symbolProfile.countries,
+        countryBreakdownSource: symbolProfile.countryBreakdownSource,
+        currency,
+        dataSource: symbolProfile.dataSource,
+        geographicAllocationKind: symbolProfile.geographicAllocationKind,
+        holdings,
+        name: displayName,
+        sectors: symbolProfile.sectors,
+        symbol: symbolProfile.symbol,
+        url: symbolProfile.url
+      },
+      assetSubClass: symbolProfile.assetSubClass,
+      averageCostBasis,
+      averageExitPrice,
+      countries: symbolProfile.countries,
+      countryBreakdownSource: symbolProfile.countryBreakdownSource,
+      currency,
+      dataSource: symbolProfile.dataSource,
+      dateOfFirstActivity: firstPurchaseDate ?? activities[0].date,
+      dateOfLastSale: lastSaleDate ?? latestActivity.date,
+      dividend: 0,
+      grossPerformance: realizedGain.toNumber(),
+      grossPerformancePercent: realizedGainPercent,
+      grossPerformancePercentWithCurrencyEffect:
+        realizedGainPercentWithCurrencyEffect,
+      grossPerformanceWithCurrencyEffect:
+        realizedGainWithCurrencyEffect.toNumber(),
+      geographicAllocationKind: symbolProfile.geographicAllocationKind,
+      holdings,
+      investment: matchedCost.toNumber(),
+      marketChange: realizedGain.toNumber(),
+      marketChangePercent: realizedGainPercent,
+      marketPrice: averageExitPrice,
+      name: displayName,
+      netPerformance: realizedGain.toNumber(),
+      netPerformancePercent: realizedGainPercent,
+      netPerformancePercentWithCurrencyEffect:
+        realizedGainPercentWithCurrencyEffect,
+      netPerformanceWithCurrencyEffect:
+        realizedGainWithCurrencyEffect.toNumber(),
+      quantity: soldQuantity,
+      realizedGain: realizedGain.toNumber(),
+      realizedGainPercent,
+      sectors: symbolProfile.sectors,
+      soldQuantity,
+      symbol: symbolProfile.symbol,
+      tags: Array.from(tagsById.values()),
+      url: symbolProfile.url,
+      valueInBaseCurrency: realizedGainWithCurrencyEffect.toNumber()
+    };
   }
 
   public async getInvestments({
@@ -1109,7 +1438,7 @@ export class PortfolioService {
       currency: userCurrency
     });
 
-    const { errors, hasErrors, historicalData } =
+    const { errors, hasErrors, historicalData, positions } =
       await portfolioCalculator.getSnapshot();
 
     const { endDate, startDate } = getIntervalFromDateRange({ dateRange });
@@ -1119,7 +1448,7 @@ export class PortfolioService {
       start: startDate
     });
 
-    const {
+    let {
       netPerformance,
       netPerformanceInPercentage,
       netPerformanceInPercentageWithCurrencyEffect,
@@ -1137,6 +1466,31 @@ export class PortfolioService {
       totalInvestment: 0,
       valueWithCurrencyEffect: 0
     };
+
+    if (dateRange === '1d' && chart.length > 0) {
+      const marketChange = positions.reduce((total, { marketChange = 0 }) => {
+        return total + marketChange;
+      }, 0);
+      const previousNetWorth = chart[0]?.netWorth ?? 0;
+      const marketChangePercent =
+        Math.abs(previousNetWorth) > Number.EPSILON
+          ? marketChange / previousNetWorth
+          : 0;
+      const lastChartItem = chart.at(-1);
+
+      if (lastChartItem) {
+        lastChartItem.netPerformance = marketChange;
+        lastChartItem.netPerformanceWithCurrencyEffect = marketChange;
+        lastChartItem.netPerformanceInPercentage = marketChangePercent;
+        lastChartItem.netPerformanceInPercentageWithCurrencyEffect =
+          marketChangePercent;
+      }
+
+      netPerformance = marketChange;
+      netPerformanceWithCurrencyEffect = marketChange;
+      netPerformanceInPercentage = marketChangePercent;
+      netPerformanceInPercentageWithCurrencyEffect = marketChangePercent;
+    }
 
     return {
       chart,

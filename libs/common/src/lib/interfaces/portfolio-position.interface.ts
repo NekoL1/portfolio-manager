@@ -57,7 +57,10 @@ export interface PortfolioPosition {
   /** @deprecated */
   dataSource: DataSource;
 
+  averageCostBasis?: number;
+  averageExitPrice?: number;
   dateOfFirstActivity: Date;
+  dateOfLastSale?: Date;
   dividend: number;
   exchange?: string;
   grossPerformance: number;
@@ -85,9 +88,13 @@ export interface PortfolioPosition {
   netPerformancePercentWithCurrencyEffect: number;
   netPerformanceWithCurrencyEffect: number;
   quantity: number;
+  realizedGain?: number;
+  realizedGainPercent?: number;
 
   /** @deprecated */
   sectors: Sector[];
+
+  soldQuantity?: number;
 
   /** @deprecated */
   symbol: string;
