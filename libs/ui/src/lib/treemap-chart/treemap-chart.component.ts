@@ -86,17 +86,48 @@ export class GfTreemapChartComponent
     this.getTooltipElement()?.remove();
   }
 
+  private isRemainingPositionPerformanceMode() {
+    return this.dateRange === 'max';
+  }
+
+  private getRemainingPositionPerformanceValue(position: PortfolioPosition) {
+    return (
+      (position.valueInBaseCurrency ?? 0) -
+      (position.investmentWithCurrencyEffect ?? 0)
+    );
+  }
+
+  private getRemainingPositionPerformancePercentage(
+    position: PortfolioPosition
+  ) {
+    const costBasisWithCurrencyEffect =
+      position.investmentWithCurrencyEffect ?? 0;
+
+    return costBasisWithCurrencyEffect > 0
+      ? this.getRemainingPositionPerformanceValue(position) /
+          costBasisWithCurrencyEffect
+      : 0;
+  }
+
   private getPerformanceValue(position: PortfolioPosition) {
-    return this.dateRange === '1d'
-      ? (position.marketChange ?? 0)
-      : (position.netPerformanceWithCurrencyEffect ?? 0);
+    if (this.dateRange === '1d') {
+      return position.marketChange ?? 0;
+    }
+
+    if (this.isRemainingPositionPerformanceMode()) {
+      return this.getRemainingPositionPerformanceValue(position);
+    }
+
+    return position.netPerformanceWithCurrencyEffect ?? 0;
   }
 
   private getPerformancePercent(position: PortfolioPosition) {
     const performancePercent =
       this.dateRange === '1d'
         ? (position.marketChangePercent ?? 0)
-        : (position.netPerformancePercentWithCurrencyEffect ?? 0);
+        : this.isRemainingPositionPerformanceMode()
+          ? this.getRemainingPositionPerformancePercentage(position)
+          : (position.netPerformancePercentWithCurrencyEffect ?? 0);
 
     return Math.round(performancePercent * 10000) / 100;
   }

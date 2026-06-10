@@ -7,6 +7,7 @@ import { PropertyService } from '@ghostfolio/api/services/property/property.serv
 import {
   DEFAULT_CURRENCY,
   DERIVED_CURRENCIES,
+  FIXED_EXCHANGE_RATES,
   PROPERTY_CURRENCIES
 } from '@ghostfolio/common/config';
 import {
@@ -50,6 +51,20 @@ export class ExchangeRateDataService {
     return this.currencyPairs;
   }
 
+  private getFixedExchangeRate({
+    currencyFrom,
+    currencyTo
+  }: {
+    currencyFrom: string;
+    currencyTo: string;
+  }) {
+    if (currencyFrom === currencyTo) {
+      return 1;
+    }
+
+    return FIXED_EXCHANGE_RATES[`${currencyFrom}${currencyTo}`];
+  }
+
   @LogPerformance
   public async getExchangeRatesByCurrency({
     currencies,
@@ -71,6 +86,25 @@ export class ExchangeRateDataService {
     } = {};
 
     for (const currency of currencies) {
+      const fixedExchangeRate = this.getFixedExchangeRate({
+        currencyFrom: currency,
+        currencyTo: targetCurrency
+      });
+
+      if (fixedExchangeRate) {
+        const dates = eachDayOfInterval({ end: endDate, start: startDate });
+
+        exchangeRatesByCurrency[`${currency}${targetCurrency}`] = {};
+
+        for (const date of dates) {
+          exchangeRatesByCurrency[`${currency}${targetCurrency}`][
+            format(date, DATE_FORMAT)
+          ] = fixedExchangeRate;
+        }
+
+        continue;
+      }
+
       exchangeRatesByCurrency[`${currency}${targetCurrency}`] =
         await this.getExchangeRates({
           startDate,
@@ -230,9 +264,15 @@ export class ExchangeRateDataService {
     }
 
     let factor: number;
+    const fixedExchangeRate = this.getFixedExchangeRate({
+      currencyFrom: aFromCurrency,
+      currencyTo: aToCurrency
+    });
 
     if (aFromCurrency === aToCurrency) {
       factor = 1;
+    } else if (fixedExchangeRate) {
+      factor = fixedExchangeRate;
     } else {
       if (this.exchangeRates[`${aFromCurrency}${aToCurrency}`]) {
         factor = this.exchangeRates[`${aFromCurrency}${aToCurrency}`];
@@ -269,6 +309,15 @@ export class ExchangeRateDataService {
   ) {
     if (aValue === 0) {
       return 0;
+    }
+
+    const fixedExchangeRate = this.getFixedExchangeRate({
+      currencyFrom: aFromCurrency,
+      currencyTo: aToCurrency
+    });
+
+    if (fixedExchangeRate) {
+      return fixedExchangeRate * aValue;
     }
 
     if (isToday(aDate)) {
@@ -365,10 +414,22 @@ export class ExchangeRateDataService {
   }) {
     const dates = eachDayOfInterval({ end: endDate, start: startDate });
     const factors: { [dateString: string]: number } = {};
+    const fixedExchangeRate = this.getFixedExchangeRate({
+      currencyFrom,
+      currencyTo
+    });
 
     if (currencyFrom === currencyTo) {
       for (const date of dates) {
         factors[format(date, DATE_FORMAT)] = 1;
+      }
+
+      return factors;
+    }
+
+    if (fixedExchangeRate) {
+      for (const date of dates) {
+        factors[format(date, DATE_FORMAT)] = fixedExchangeRate;
       }
 
       return factors;

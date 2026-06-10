@@ -332,17 +332,21 @@ export class GfHeaderComponent implements OnChanges {
               takeUntilDestroyed(this.destroyRef)
             )
             .subscribe(({ authToken }) => {
-              this.setToken(authToken);
+              this.setToken(authToken, data.accessToken);
             });
         }
       });
   }
 
-  public setToken(aToken: string) {
-    this.tokenStorageService.saveToken(
-      aToken,
-      this.settingsStorageService.getSetting(KEY_STAY_SIGNED_IN) === 'true'
-    );
+  public setToken(aToken: string, accessToken?: string) {
+    const staySignedIn =
+      this.settingsStorageService.getSetting(KEY_STAY_SIGNED_IN) !== 'false';
+
+    if (accessToken) {
+      this.tokenStorageService.saveAccessToken(accessToken, staySignedIn);
+    }
+
+    this.tokenStorageService.saveToken(aToken, staySignedIn);
 
     this.userService
       .get()

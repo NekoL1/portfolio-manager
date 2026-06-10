@@ -44,6 +44,7 @@ import { forkJoin } from 'rxjs';
 })
 export class GfHomeOverviewComponent implements OnInit {
   public contributionDataItems: LineChartItem[];
+  public latestContributionValue?: number;
   public deviceType: string;
   public errors: AssetProfileIdentifier[];
   public hasError: boolean;
@@ -53,6 +54,8 @@ export class GfHomeOverviewComponent implements OnInit {
   public isAllTimeHigh: boolean;
   public isAllTimeLow: boolean;
   public isLoadingPerformance = true;
+  public latestCashValue?: number;
+  public latestMarketValue?: number;
   public mwrPerformance: PortfolioPerformance;
   public performanceLabel = $localize`Portfolio Value`;
   public precision = 2;
@@ -120,10 +123,14 @@ export class GfHomeOverviewComponent implements OnInit {
     this.contributionDataItems = null;
     this.historicalDataItems = null;
     this.isLoadingPerformance = true;
+    this.latestContributionValue = undefined;
+    this.latestCashValue = undefined;
+    this.latestMarketValue = undefined;
     this.mwrPerformance = undefined;
     this.twrPerformance = undefined;
 
     forkJoin({
+      holdings: this.dataService.fetchPortfolioHoldings(),
       mwr: this.dataService.fetchPortfolioPerformance({
         calculationType: PerformanceCalculationType.MWR,
         range: this.user?.settings?.dateRange
@@ -134,10 +141,21 @@ export class GfHomeOverviewComponent implements OnInit {
       })
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ mwr, twr }) => {
+      .subscribe(({ holdings, mwr, twr }) => {
         this.errors = this.mergeErrors([twr.errors, mwr.errors]);
         this.mwrPerformance = mwr.performance;
         this.twrPerformance = twr.performance;
+        this.latestMarketValue = holdings.holdings.reduce(
+          (total, { valueInBaseCurrency = 0 }) => {
+            return total + valueInBaseCurrency;
+          },
+          0
+        );
+        this.latestCashValue = Math.max(
+          (this.twrPerformance?.currentValueInBaseCurrency ?? 0) -
+            this.latestMarketValue,
+          0
+        );
 
         this.historicalDataItems = twr.chart.map(
           ({ date, valueWithCurrencyEffect }) => {
@@ -162,6 +180,11 @@ export class GfHomeOverviewComponent implements OnInit {
             };
           }
         );
+
+        this.latestContributionValue =
+          this.contributionDataItems[
+            this.contributionDataItems.length - 1
+          ]?.value;
 
         if (
           this.deviceType === 'mobile' &&

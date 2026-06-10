@@ -62,7 +62,11 @@
 
 <div mat-dialog-actions>
   <div class="flex-grow-1">
-    <mat-checkbox color="primary" i18n (change)="onChangeStaySignedIn($event)"
+    <mat-checkbox
+      color="primary"
+      i18n
+      [checked]="staySignedIn"
+      (change)="onChangeStaySignedIn($event)"
       >Stay signed in</mat-checkbox
     >
   </div>

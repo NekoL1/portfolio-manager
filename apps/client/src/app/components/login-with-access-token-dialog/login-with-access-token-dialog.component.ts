@@ -46,16 +46,29 @@ export class GfLoginWithAccessTokenDialogComponent {
     Validators.required
   );
   public isAccessTokenHidden = true;
+  public staySignedIn = true;
 
   public constructor(
     @Inject(MAT_DIALOG_DATA) public data: LoginWithAccessTokenDialogParams,
     public dialogRef: MatDialogRef<GfLoginWithAccessTokenDialogComponent>,
     private settingsStorageService: SettingsStorageService
   ) {
+    const persistedStaySignedIn =
+      this.settingsStorageService.getSetting(KEY_STAY_SIGNED_IN) !== 'false';
+
+    this.staySignedIn = persistedStaySignedIn;
+
+    this.settingsStorageService.setSetting(
+      KEY_STAY_SIGNED_IN,
+      persistedStaySignedIn.toString()
+    );
+
     addIcons({ eyeOffOutline, eyeOutline });
   }
 
   public onChangeStaySignedIn(aValue: MatCheckboxChange) {
+    this.staySignedIn = aValue.checked;
+
     this.settingsStorageService.setSetting(
       KEY_STAY_SIGNED_IN,
       aValue.checked?.toString()

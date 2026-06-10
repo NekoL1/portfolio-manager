@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 export const KEY_RANGE = 'range';
 export const KEY_STAY_SIGNED_IN = 'staySignedIn';
 export const KEY_TOKEN = 'auth-token';
+export const KEY_ACCESS_TOKEN = 'access-token';
 
 @Injectable({
   providedIn: 'root'

@@ -74,6 +74,7 @@ export interface PortfolioPosition {
   holdings: Holding[];
 
   investment: number;
+  investmentWithCurrencyEffect?: number;
   marketChange?: number;
   marketChangePercent?: number;
   marketPrice: number;

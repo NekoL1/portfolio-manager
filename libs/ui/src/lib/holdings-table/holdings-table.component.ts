@@ -231,16 +231,51 @@ export class GfHoldingsTableComponent {
     return `${symbol}${amount}`.replace(/\s+/g, '');
   }
 
+  private isRemainingPositionPerformanceMode() {
+    return this.holdingType() === 'ACTIVE' && this.dateRange() === 'max';
+  }
+
+  private getRemainingPositionPerformanceValue(position: PortfolioPosition) {
+    return (
+      (position.valueInBaseCurrency ?? 0) -
+      (position.investmentWithCurrencyEffect ?? 0)
+    );
+  }
+
+  private getRemainingPositionPerformancePercentage(
+    position: PortfolioPosition
+  ) {
+    const costBasisWithCurrencyEffect =
+      position.investmentWithCurrencyEffect ?? 0;
+
+    return costBasisWithCurrencyEffect > 0
+      ? this.getRemainingPositionPerformanceValue(position) /
+          costBasisWithCurrencyEffect
+      : 0;
+  }
+
   protected getDisplayedPerformanceValue(position: PortfolioPosition) {
-    return this.dateRange() === '1d'
-      ? (position.marketChange ?? 0)
-      : (position.netPerformanceWithCurrencyEffect ?? 0);
+    if (this.dateRange() === '1d') {
+      return position.marketChange ?? 0;
+    }
+
+    if (this.isRemainingPositionPerformanceMode()) {
+      return this.getRemainingPositionPerformanceValue(position);
+    }
+
+    return position.netPerformanceWithCurrencyEffect ?? 0;
   }
 
   protected getDisplayedPerformancePercentage(position: PortfolioPosition) {
-    return this.dateRange() === '1d'
-      ? (position.marketChangePercent ?? 0)
-      : (position.netPerformancePercentWithCurrencyEffect ?? 0);
+    if (this.dateRange() === '1d') {
+      return position.marketChangePercent ?? 0;
+    }
+
+    if (this.isRemainingPositionPerformanceMode()) {
+      return this.getRemainingPositionPerformancePercentage(position);
+    }
+
+    return position.netPerformancePercentWithCurrencyEffect ?? 0;
   }
 
   protected getDisplayedRealizedGain(position: PortfolioPosition) {

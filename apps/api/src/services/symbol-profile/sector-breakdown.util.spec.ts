@@ -28,6 +28,8 @@ describe('sector breakdown resolver', () => {
     expect(result.some(({ name }) => name === 'Industrials')).toBe(true);
     expect(result.some(({ name }) => name === 'Technology')).toBe(true);
     expect(result.some(({ name }) => name === 'Utilities')).toBe(true);
+    expect(result.some(({ name }) => name === 'UNKNOWN')).toBe(true);
+    expect(result.some(({ name }) => name === 'Other')).toBe(false);
 
     const totalWeight = result.reduce((sum, { weight }) => {
       return sum + weight;

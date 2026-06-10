@@ -107,6 +107,37 @@ const emergingMarkets = require('../../assets/countries/emerging-markets.json');
 const europeMarkets = require('../../assets/countries/europe-markets.json');
 const SOLD_HOLDING_FILTER_IDS = ['CLOSED', 'SOLD'];
 
+type HoldingLot = {
+  costInBaseCurrencyPerShare: Big;
+  costPerShare: Big;
+  remainingQuantity: Big;
+};
+
+type ShortHoldingLot = {
+  proceedsInBaseCurrencyPerShare: Big;
+  proceedsPerShare: Big;
+  remainingQuantity: Big;
+};
+
+type HoldingLotSummary = {
+  activitiesCount: number;
+  averageCostBasis: number;
+  averageExitPrice: number;
+  currency: string;
+  firstPurchaseDate?: Date;
+  lastSaleDate?: Date;
+  matchedCost: Big;
+  matchedCostInBaseCurrency: Big;
+  matchedProceeds: Big;
+  matchedProceedsInBaseCurrency: Big;
+  matchedQuantity: Big;
+  remainingCost: Big;
+  remainingCostInBaseCurrency: Big;
+  remainingQuantity: Big;
+  symbolProfile: EnhancedSymbolProfile;
+  tags: Tag[];
+};
+
 @Injectable()
 export class PortfolioService {
   public constructor(
@@ -429,6 +460,272 @@ export class PortfolioService {
       return [];
     }
 
+    const holdingSummaries = await this.getHoldingLotSummaries({
+      activities,
+      userCurrency
+    });
+
+    return Array.from(holdingSummaries.values())
+      .map((holdingSummary) => {
+        return this.getSoldHoldingSummary(holdingSummary);
+      })
+      .filter((holding): holding is PortfolioPosition => !!holding)
+      .sort((a, b) => {
+        const dateDifference =
+          (b.dateOfLastSale?.getTime() ?? 0) -
+          (a.dateOfLastSale?.getTime() ?? 0);
+
+        if (dateDifference !== 0) {
+          return dateDifference;
+        }
+
+        return a.symbol.localeCompare(b.symbol);
+      });
+  }
+
+  private getActivityExchangeRate({
+    activity,
+    exchangeRatesByCurrency,
+    userCurrency
+  }: {
+    activity: Activity;
+    exchangeRatesByCurrency: {
+      [currency: string]: { [dateString: string]: number };
+    };
+    userCurrency: string;
+  }) {
+    const activityCurrency =
+      activity.currency ?? activity.SymbolProfile.currency ?? userCurrency;
+    const dateString = format(activity.date, DATE_FORMAT);
+
+    return (
+      exchangeRatesByCurrency[`${activityCurrency}${userCurrency}`]?.[
+        dateString
+      ] ?? 1
+    );
+  }
+
+  private getHoldingLotSummary({
+    activities,
+    exchangeRatesByCurrency,
+    userCurrency
+  }: {
+    activities: Activity[];
+    exchangeRatesByCurrency: {
+      [currency: string]: { [dateString: string]: number };
+    };
+    userCurrency: string;
+  }): HoldingLotSummary | null {
+    if (activities.length === 0) {
+      return null;
+    }
+
+    const latestActivity = activities[activities.length - 1];
+    const buyLots: HoldingLot[] = [];
+    const shortLots: ShortHoldingLot[] = [];
+    const symbolProfile = latestActivity.SymbolProfile;
+    const tagsById = new Map<string, Tag>();
+    const currency = symbolProfile.currency ?? DEFAULT_CURRENCY;
+
+    let firstPurchaseDate: Date | undefined;
+    let lastSaleDate: Date | undefined;
+    let matchedCost = new Big(0);
+    let matchedCostInBaseCurrency = new Big(0);
+    let matchedProceeds = new Big(0);
+    let matchedProceedsInBaseCurrency = new Big(0);
+    let matchedQuantity = new Big(0);
+
+    for (const activity of activities) {
+      for (const tag of activity.tags ?? []) {
+        tagsById.set(tag.id, tag);
+      }
+
+      if (activity.type === ActivityType.BUY) {
+        firstPurchaseDate ??= activity.date;
+
+        const exchangeRate = this.getActivityExchangeRate({
+          activity,
+          exchangeRatesByCurrency,
+          userCurrency
+        });
+        const valueInBaseCurrency = Number.isFinite(
+          activity.valueInBaseCurrency
+        )
+          ? activity.valueInBaseCurrency
+          : new Big(activity.value).mul(exchangeRate).toNumber();
+        const feeInBaseCurrency = Number.isFinite(activity.feeInBaseCurrency)
+          ? activity.feeInBaseCurrency
+          : new Big(activity.fee ?? 0).mul(exchangeRate).toNumber();
+        const buyCostPerShareInBaseCurrency =
+          activity.quantity === 0
+            ? new Big(0)
+            : new Big(valueInBaseCurrency)
+                .plus(feeInBaseCurrency)
+                .div(activity.quantity);
+        const buyCostPerShare = new Big(
+          activity.unitPriceInAssetProfileCurrency
+        );
+        let remainingBuyQuantity = new Big(activity.quantity);
+
+        while (remainingBuyQuantity.gt(0) && shortLots.length > 0) {
+          const currentShortLot = shortLots[0];
+          const matchedLotQuantity = currentShortLot.remainingQuantity.lte(
+            remainingBuyQuantity
+          )
+            ? currentShortLot.remainingQuantity
+            : remainingBuyQuantity;
+
+          matchedCost = matchedCost.plus(
+            matchedLotQuantity.mul(buyCostPerShare)
+          );
+          matchedCostInBaseCurrency = matchedCostInBaseCurrency.plus(
+            matchedLotQuantity.mul(buyCostPerShareInBaseCurrency)
+          );
+          matchedProceeds = matchedProceeds.plus(
+            matchedLotQuantity.mul(currentShortLot.proceedsPerShare)
+          );
+          matchedProceedsInBaseCurrency = matchedProceedsInBaseCurrency.plus(
+            matchedLotQuantity.mul(
+              currentShortLot.proceedsInBaseCurrencyPerShare
+            )
+          );
+          matchedQuantity = matchedQuantity.plus(matchedLotQuantity);
+
+          currentShortLot.remainingQuantity =
+            currentShortLot.remainingQuantity.minus(matchedLotQuantity);
+          remainingBuyQuantity = remainingBuyQuantity.minus(matchedLotQuantity);
+
+          if (currentShortLot.remainingQuantity.lte(0)) {
+            shortLots.shift();
+          }
+        }
+
+        if (remainingBuyQuantity.gt(0)) {
+          buyLots.push({
+            costInBaseCurrencyPerShare: buyCostPerShareInBaseCurrency,
+            costPerShare: buyCostPerShare,
+            remainingQuantity: remainingBuyQuantity
+          });
+        }
+
+        continue;
+      }
+
+      if (activity.type !== ActivityType.SELL) {
+        continue;
+      }
+
+      lastSaleDate = activity.date;
+
+      let remainingSellQuantity = new Big(activity.quantity);
+      const salePrice = new Big(activity.unitPriceInAssetProfileCurrency);
+      const exchangeRate = this.getActivityExchangeRate({
+        activity,
+        exchangeRatesByCurrency,
+        userCurrency
+      });
+      const valueInBaseCurrency = Number.isFinite(activity.valueInBaseCurrency)
+        ? activity.valueInBaseCurrency
+        : new Big(activity.value).mul(exchangeRate).toNumber();
+      const feeInBaseCurrency = Number.isFinite(activity.feeInBaseCurrency)
+        ? activity.feeInBaseCurrency
+        : new Big(activity.fee ?? 0).mul(exchangeRate).toNumber();
+      const saleProceedsInBaseCurrencyPerShare =
+        activity.quantity === 0
+          ? new Big(0)
+          : new Big(valueInBaseCurrency)
+              .minus(feeInBaseCurrency)
+              .div(activity.quantity);
+
+      while (remainingSellQuantity.gt(0) && buyLots.length > 0) {
+        const currentLot = buyLots[0];
+        const matchedLotQuantity = currentLot.remainingQuantity.lte(
+          remainingSellQuantity
+        )
+          ? currentLot.remainingQuantity
+          : remainingSellQuantity;
+
+        matchedCost = matchedCost.plus(
+          matchedLotQuantity.mul(currentLot.costPerShare)
+        );
+        matchedCostInBaseCurrency = matchedCostInBaseCurrency.plus(
+          matchedLotQuantity.mul(currentLot.costInBaseCurrencyPerShare)
+        );
+        matchedProceeds = matchedProceeds.plus(
+          matchedLotQuantity.mul(salePrice)
+        );
+        matchedProceedsInBaseCurrency = matchedProceedsInBaseCurrency.plus(
+          matchedLotQuantity.mul(saleProceedsInBaseCurrencyPerShare)
+        );
+        matchedQuantity = matchedQuantity.plus(matchedLotQuantity);
+
+        currentLot.remainingQuantity =
+          currentLot.remainingQuantity.minus(matchedLotQuantity);
+        remainingSellQuantity = remainingSellQuantity.minus(matchedLotQuantity);
+
+        if (currentLot.remainingQuantity.lte(0)) {
+          buyLots.shift();
+        }
+      }
+
+      if (remainingSellQuantity.gt(0)) {
+        shortLots.push({
+          proceedsInBaseCurrencyPerShare: saleProceedsInBaseCurrencyPerShare,
+          proceedsPerShare: salePrice,
+          remainingQuantity: remainingSellQuantity
+        });
+      }
+    }
+
+    const remainingQuantity = buyLots.reduce((total, currentLot) => {
+      return total.plus(currentLot.remainingQuantity);
+    }, new Big(0));
+    const remainingCost = buyLots.reduce((total, currentLot) => {
+      return total.plus(
+        currentLot.remainingQuantity.mul(currentLot.costPerShare)
+      );
+    }, new Big(0));
+    const remainingCostInBaseCurrency = buyLots.reduce((total, currentLot) => {
+      return total.plus(
+        currentLot.remainingQuantity.mul(currentLot.costInBaseCurrencyPerShare)
+      );
+    }, new Big(0));
+
+    return {
+      activitiesCount: activities.length,
+      averageCostBasis: matchedQuantity.eq(0)
+        ? 0
+        : matchedCost.div(matchedQuantity).toNumber(),
+      averageExitPrice: matchedQuantity.eq(0)
+        ? 0
+        : matchedProceeds.div(matchedQuantity).toNumber(),
+      currency,
+      firstPurchaseDate,
+      lastSaleDate,
+      matchedCost,
+      matchedCostInBaseCurrency,
+      matchedProceeds,
+      matchedProceedsInBaseCurrency,
+      matchedQuantity,
+      remainingCost,
+      remainingCostInBaseCurrency,
+      remainingQuantity,
+      symbolProfile,
+      tags: Array.from(tagsById.values())
+    };
+  }
+
+  private async getHoldingLotSummaries({
+    activities,
+    userCurrency
+  }: {
+    activities: Activity[];
+    userCurrency: string;
+  }) {
+    if (activities.length === 0) {
+      return new Map<string, HoldingLotSummary>();
+    }
+
     const currencies = Array.from(
       new Set(
         activities
@@ -463,50 +760,45 @@ export class PortfolioService {
       activitiesByHolding.set(key, currentActivities);
     }
 
-    return Array.from(activitiesByHolding.values())
-      .map((holdingActivities) => {
-        return this.getSoldHoldingSummary({
-          activities: holdingActivities,
-          exchangeRatesByCurrency,
-          userCurrency
-        });
-      })
-      .filter((holding): holding is PortfolioPosition => !!holding)
-      .sort((a, b) => {
-        const dateDifference =
-          (b.dateOfLastSale?.getTime() ?? 0) -
-          (a.dateOfLastSale?.getTime() ?? 0);
+    const holdingSummaries = new Map<string, HoldingLotSummary>();
 
-        if (dateDifference !== 0) {
-          return dateDifference;
-        }
-
-        return a.symbol.localeCompare(b.symbol);
+    for (const [key, holdingActivities] of activitiesByHolding.entries()) {
+      const holdingSummary = this.getHoldingLotSummary({
+        activities: holdingActivities,
+        exchangeRatesByCurrency,
+        userCurrency
       });
+
+      if (holdingSummary) {
+        holdingSummaries.set(key, holdingSummary);
+      }
+    }
+
+    return holdingSummaries;
   }
 
-  private getSoldHoldingSummary({
-    activities,
-    exchangeRatesByCurrency,
-    userCurrency
-  }: {
-    activities: Activity[];
-    exchangeRatesByCurrency: {
-      [currency: string]: { [dateString: string]: number };
-    };
-    userCurrency: string;
-  }): PortfolioPosition | null {
-    if (activities.length === 0) {
+  private getSoldHoldingSummary(
+    holdingSummary: HoldingLotSummary | null
+  ): PortfolioPosition | null {
+    if (!holdingSummary || holdingSummary.lastSaleDate === undefined) {
       return null;
     }
 
-    const latestActivity = activities[activities.length - 1];
-    const buyLots: {
-      costInBaseCurrencyPerShare: Big;
-      remainingQuantity: Big;
-      unitPrice: Big;
-    }[] = [];
-    const symbolProfile = latestActivity.SymbolProfile;
+    const {
+      activitiesCount,
+      averageCostBasis,
+      averageExitPrice,
+      currency,
+      firstPurchaseDate,
+      lastSaleDate,
+      matchedCost,
+      matchedCostInBaseCurrency,
+      matchedProceeds,
+      matchedProceedsInBaseCurrency,
+      matchedQuantity,
+      symbolProfile,
+      tags
+    } = holdingSummary;
     const holdings = symbolProfile.holdings.map(
       ({ allocationInPercentage, name }) => {
         return {
@@ -516,132 +808,11 @@ export class PortfolioService {
         };
       }
     );
-    const tagsById = new Map<string, Tag>();
-    const currency = symbolProfile.currency ?? DEFAULT_CURRENCY;
-
-    let firstPurchaseDate: Date | undefined;
-    let hasSellActivity = false;
-    let lastSaleDate: Date | undefined;
-    let matchedCost = new Big(0);
-    let matchedCostInBaseCurrency = new Big(0);
-    let matchedProceeds = new Big(0);
-    let matchedProceedsInBaseCurrency = new Big(0);
-    let matchedQuantity = new Big(0);
-
-    for (const activity of activities) {
-      for (const tag of activity.tags ?? []) {
-        tagsById.set(tag.id, tag);
-      }
-
-      if (activity.type === ActivityType.BUY) {
-        firstPurchaseDate ??= activity.date;
-
-        const activityCurrency =
-          activity.currency ?? activity.SymbolProfile.currency ?? userCurrency;
-        const dateString = format(activity.date, DATE_FORMAT);
-        const exchangeRate =
-          exchangeRatesByCurrency[`${activityCurrency}${userCurrency}`]?.[
-            dateString
-          ] ?? 1;
-        const valueInBaseCurrency = Number.isFinite(
-          activity.valueInBaseCurrency
-        )
-          ? activity.valueInBaseCurrency
-          : new Big(activity.value).mul(exchangeRate).toNumber();
-        const feeInBaseCurrency = Number.isFinite(activity.feeInBaseCurrency)
-          ? activity.feeInBaseCurrency
-          : new Big(activity.fee ?? 0).mul(exchangeRate).toNumber();
-
-        buyLots.push({
-          costInBaseCurrencyPerShare:
-            activity.quantity === 0
-              ? new Big(0)
-              : new Big(valueInBaseCurrency)
-                  .plus(feeInBaseCurrency)
-                  .div(activity.quantity),
-          remainingQuantity: new Big(activity.quantity),
-          unitPrice: new Big(activity.unitPriceInAssetProfileCurrency)
-        });
-
-        continue;
-      }
-
-      if (activity.type !== ActivityType.SELL) {
-        continue;
-      }
-
-      hasSellActivity = true;
-      lastSaleDate = activity.date;
-
-      let remainingSellQuantity = new Big(activity.quantity);
-      const salePrice = new Big(activity.unitPriceInAssetProfileCurrency);
-
-      const activityCurrency =
-        activity.currency ?? activity.SymbolProfile.currency ?? userCurrency;
-      const dateString = format(activity.date, DATE_FORMAT);
-      const exchangeRate =
-        exchangeRatesByCurrency[`${activityCurrency}${userCurrency}`]?.[
-          dateString
-        ] ?? 1;
-      const valueInBaseCurrency = Number.isFinite(activity.valueInBaseCurrency)
-        ? activity.valueInBaseCurrency
-        : new Big(activity.value).mul(exchangeRate).toNumber();
-      const feeInBaseCurrency = Number.isFinite(activity.feeInBaseCurrency)
-        ? activity.feeInBaseCurrency
-        : new Big(activity.fee ?? 0).mul(exchangeRate).toNumber();
-      const saleProceedsInBaseCurrencyPerShare =
-        activity.quantity === 0
-          ? new Big(0)
-          : new Big(valueInBaseCurrency)
-              .minus(feeInBaseCurrency)
-              .div(activity.quantity);
-
-      while (remainingSellQuantity.gt(0) && buyLots.length > 0) {
-        const currentLot = buyLots[0];
-        const matchedLotQuantity = currentLot.remainingQuantity.lte(
-          remainingSellQuantity
-        )
-          ? currentLot.remainingQuantity
-          : remainingSellQuantity;
-
-        matchedCost = matchedCost.plus(
-          matchedLotQuantity.mul(currentLot.unitPrice)
-        );
-        matchedCostInBaseCurrency = matchedCostInBaseCurrency.plus(
-          matchedLotQuantity.mul(currentLot.costInBaseCurrencyPerShare)
-        );
-        matchedProceeds = matchedProceeds.plus(
-          matchedLotQuantity.mul(salePrice)
-        );
-        matchedProceedsInBaseCurrency = matchedProceedsInBaseCurrency.plus(
-          matchedLotQuantity.mul(saleProceedsInBaseCurrencyPerShare)
-        );
-        matchedQuantity = matchedQuantity.plus(matchedLotQuantity);
-
-        currentLot.remainingQuantity =
-          currentLot.remainingQuantity.minus(matchedLotQuantity);
-        remainingSellQuantity = remainingSellQuantity.minus(matchedLotQuantity);
-
-        if (currentLot.remainingQuantity.lte(0)) {
-          buyLots.shift();
-        }
-      }
-    }
-
-    if (!hasSellActivity) {
-      return null;
-    }
 
     const realizedGain = matchedProceeds.minus(matchedCost);
     const realizedGainWithCurrencyEffect = matchedProceedsInBaseCurrency.minus(
       matchedCostInBaseCurrency
     );
-    const averageCostBasis = matchedQuantity.eq(0)
-      ? 0
-      : matchedCost.div(matchedQuantity).toNumber();
-    const averageExitPrice = matchedQuantity.eq(0)
-      ? 0
-      : matchedProceeds.div(matchedQuantity).toNumber();
     const realizedGainPercent = matchedCost.eq(0)
       ? 0
       : realizedGain.div(matchedCost).toNumber();
@@ -656,7 +827,7 @@ export class PortfolioService {
     const displayName = symbolProfile.name ?? symbolProfile.symbol;
 
     return {
-      activitiesCount: activities.length,
+      activitiesCount,
       allocationInPercentage: 0,
       assetClass: symbolProfile.assetClass,
       assetProfile: {
@@ -680,8 +851,8 @@ export class PortfolioService {
       countryBreakdownSource: symbolProfile.countryBreakdownSource,
       currency,
       dataSource: symbolProfile.dataSource,
-      dateOfFirstActivity: firstPurchaseDate ?? activities[0].date,
-      dateOfLastSale: lastSaleDate ?? latestActivity.date,
+      dateOfFirstActivity: firstPurchaseDate ?? lastSaleDate,
+      dateOfLastSale: lastSaleDate,
       dividend: 0,
       grossPerformance: realizedGain.toNumber(),
       grossPerformancePercent: realizedGainPercent,
@@ -708,7 +879,7 @@ export class PortfolioService {
       sectors: symbolProfile.sectors,
       soldQuantity,
       symbol: symbolProfile.symbol,
-      tags: Array.from(tagsById.values()),
+      tags,
       url: symbolProfile.url,
       valueInBaseCurrency: realizedGainWithCurrencyEffect.toNumber()
     };
@@ -825,6 +996,13 @@ export class PortfolioService {
         userCurrency,
         userId
       });
+    const holdingLotSummaries =
+      dateRange === 'max'
+        ? await this.getHoldingLotSummaries({
+            activities,
+            userCurrency
+          })
+        : new Map<string, HoldingLotSummary>();
 
     const portfolioCalculator = this.calculatorFactory.createCalculator({
       activities,
@@ -901,6 +1079,7 @@ export class PortfolioService {
     for (const {
       activitiesCount,
       currency,
+      dataSource,
       dateOfFirstActivity,
       dividend,
       grossPerformance,
@@ -908,6 +1087,7 @@ export class PortfolioService {
       grossPerformancePercentage,
       grossPerformancePercentageWithCurrencyEffect,
       investment,
+      investmentWithCurrencyEffect,
       marketChange,
       marketChangePercent,
       marketPrice,
@@ -920,6 +1100,11 @@ export class PortfolioService {
       tags,
       valueInBaseCurrency
     } of positions) {
+      const holdingIdentifier = getAssetProfileIdentifier({
+        dataSource,
+        symbol
+      });
+      const holdingLotSummary = holdingLotSummaries.get(holdingIdentifier);
       if (isFilteredByClosedHoldings === true) {
         if (!quantity.eq(0)) {
           // Ignore positions with a quantity
@@ -933,6 +1118,26 @@ export class PortfolioService {
       }
 
       const assetProfile = symbolProfileMap[symbol];
+      const remainingInvestmentWithCurrencyEffect =
+        quantity.gt(0) && holdingLotSummary
+          ? holdingLotSummary.remainingCostInBaseCurrency.toNumber()
+          : undefined;
+      const remainingInvestment =
+        quantity.gt(0) && holdingLotSummary
+          ? holdingLotSummary.remainingCost.toNumber()
+          : undefined;
+      const remainingPositionPerformanceWithCurrencyEffect =
+        remainingInvestmentWithCurrencyEffect !== undefined
+          ? valueInBaseCurrency
+              .minus(holdingLotSummary.remainingCostInBaseCurrency)
+              .toNumber()
+          : undefined;
+      const remainingPositionPerformancePercentageWithCurrencyEffect =
+        remainingInvestmentWithCurrencyEffect &&
+        Math.abs(remainingInvestmentWithCurrencyEffect) > Number.EPSILON
+          ? (remainingPositionPerformanceWithCurrencyEffect ?? 0) /
+            remainingInvestmentWithCurrencyEffect
+          : 0;
 
       let markets: PortfolioPosition['markets'];
       let marketsAdvanced: PortfolioPosition['marketsAdvanced'];
@@ -1003,18 +1208,29 @@ export class PortfolioService {
             };
           }
         ),
-        investment: investment.toNumber(),
+        investment: remainingInvestment ?? investment.toNumber(),
+        investmentWithCurrencyEffect:
+          remainingInvestmentWithCurrencyEffect ??
+          investmentWithCurrencyEffect?.toNumber() ??
+          0,
         marketChange: marketChange ?? 0,
         marketChangePercent: marketChangePercent ?? 0,
         name: assetProfile.name,
         netPerformance: netPerformance?.toNumber() ?? 0,
         netPerformancePercent: netPerformancePercentage?.toNumber() ?? 0,
         netPerformancePercentWithCurrencyEffect:
-          netPerformancePercentageWithCurrencyEffectMap?.[
-            dateRange
-          ]?.toNumber() ?? 0,
+          dateRange === 'max' &&
+          remainingPositionPerformanceWithCurrencyEffect !== undefined
+            ? remainingPositionPerformancePercentageWithCurrencyEffect
+            : (netPerformancePercentageWithCurrencyEffectMap?.[
+                dateRange
+              ]?.toNumber() ?? 0),
         netPerformanceWithCurrencyEffect:
-          netPerformanceWithCurrencyEffectMap?.[dateRange]?.toNumber() ?? 0,
+          dateRange === 'max' &&
+          remainingPositionPerformanceWithCurrencyEffect !== undefined
+            ? remainingPositionPerformanceWithCurrencyEffect
+            : (netPerformanceWithCurrencyEffectMap?.[dateRange]?.toNumber() ??
+              0),
         quantity: quantity.toNumber(),
         sectors: assetProfile.sectors,
         url: assetProfile.url,
@@ -1175,6 +1391,17 @@ export class PortfolioService {
         SymbolProfile.symbol === symbol
       );
     });
+    const holdingLotSummary = (
+      await this.getHoldingLotSummaries({
+        activities: activitiesOfHolding,
+        userCurrency
+      })
+    ).get(
+      getAssetProfileIdentifier({
+        dataSource,
+        symbol
+      })
+    );
 
     const dividendYieldPercent = getAnnualizedPerformancePercent({
       daysInMarket: differenceInDays(
@@ -1317,13 +1544,19 @@ export class PortfolioService {
       userCurrency
     );
     const valueDifference = currentValue - snapshotValue;
+    const remainingInvestmentInBaseCurrencyWithCurrencyEffect =
+      quantity.gt(0) && holdingLotSummary
+        ? holdingLotSummary.remainingCostInBaseCurrency.toNumber()
+        : (investmentWithCurrencyEffect?.toNumber() ?? 0);
     const netPerformanceWithCurrencyEffect =
-      (netPerformanceWithCurrencyEffectMap?.['max']?.toNumber() ?? 0) +
-      valueDifference;
+      quantity.gt(0) && holdingLotSummary
+        ? currentValue - remainingInvestmentInBaseCurrencyWithCurrencyEffect
+        : (netPerformanceWithCurrencyEffectMap?.['max']?.toNumber() ?? 0) +
+          valueDifference;
     const grossPerformanceWithCurrencyEffectValue =
       (grossPerformanceWithCurrencyEffect?.toNumber() ?? 0) + valueDifference;
     const investmentInBaseCurrencyWithCurrencyEffect =
-      investmentWithCurrencyEffect?.toNumber() ?? 0;
+      remainingInvestmentInBaseCurrencyWithCurrencyEffect;
     const netPerformancePercentWithCurrencyEffect =
       investmentWithCurrencyEffect?.gt(0)
         ? netPerformanceWithCurrencyEffect /

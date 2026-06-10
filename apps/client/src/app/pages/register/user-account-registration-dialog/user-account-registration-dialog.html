@@ -96,7 +96,7 @@
             mat-flat-button
             matStepperNext
             [disabled]="isCreateAccountButtonDisabled"
-            [mat-dialog-close]="authToken"
+            [mat-dialog-close]="{ accessToken, authToken }"
           >
             <ng-container i18n>Create Account</ng-container>
           </button>

@@ -94,9 +94,10 @@ export class GfRegisterPageComponent implements OnInit {
     dialogRef
       .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((authToken) => {
-        if (authToken) {
-          this.tokenStorageService.saveToken(authToken, true);
+      .subscribe((result) => {
+        if (result?.authToken) {
+          this.tokenStorageService.saveAccessToken(result.accessToken, true);
+          this.tokenStorageService.saveToken(result.authToken, true);
 
           this.router.navigate(['/']);
         }

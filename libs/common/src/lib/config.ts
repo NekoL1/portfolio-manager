@@ -76,6 +76,11 @@ export const PORTFOLIO_SNAPSHOT_COMPUTATION_QUEUE_PRIORITY_LOW =
   Number.MAX_SAFE_INTEGER;
 
 export const DEFAULT_CURRENCY = 'USD';
+export const USD_TO_CAD_EXCHANGE_RATE = 1.393;
+export const FIXED_EXCHANGE_RATES: Record<string, number> = {
+  CADUSD: 1 / USD_TO_CAD_EXCHANGE_RATE,
+  USDCAD: USD_TO_CAD_EXCHANGE_RATE
+};
 export const DEFAULT_DATE_FORMAT_MONTH_YEAR = 'MMM yyyy';
 export const DEFAULT_HOST = '0.0.0.0';
 export const DEFAULT_LANGUAGE_CODE = 'en';

@@ -37,7 +37,10 @@ import {
   Price,
   QuoteSummaryResult
 } from 'yahoo-finance2/esm/src/modules/quoteSummary';
-import { SearchQuoteNonYahoo } from 'yahoo-finance2/esm/src/modules/search';
+import {
+  SearchQuoteNonYahoo,
+  SearchResult
+} from 'yahoo-finance2/esm/src/modules/search';
 
 @Injectable()
 export class YahooFinanceService implements DataProviderInterface {
@@ -252,7 +255,13 @@ export class YahooFinanceService implements DataProviderInterface {
         quoteTypes.push('INDEX');
       }
 
-      const searchResult = await this.yahooFinance.search(query);
+      const searchResult = (await this.yahooFinance.search(
+        query,
+        undefined,
+        // Yahoo's search payload casing drifts occasionally (e.g. "ETF", "Equity", "Fund").
+        // We still normalize the returned quotes ourselves, so skip hard schema failure here.
+        { validateResult: false }
+      )) as SearchResult;
 
       const quotes = searchResult.quotes
         .filter(

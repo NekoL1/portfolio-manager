@@ -1,5 +1,5 @@
 <div
-  class="align-items-center container d-flex flex-column h-100 justify-content-center overview p-0 position-relative"
+  class="align-items-center container d-flex flex-column h-100 justify-content-start overview p-0 position-relative"
 >
   @if (
     !hasImpersonationId &&
@@ -84,6 +84,45 @@
                       ? twrPerformance?.currentValueInBaseCurrency
                       : twrPerformance?.netPerformancePercentageWithCurrencyEffect
                   "
+                />
+              </div>
+              <div class="headline-contribution">
+                <span class="headline-contribution-label text-muted" i18n
+                  >Contributions</span
+                >
+                <gf-value
+                  class="headline-contribution-value"
+                  [isCurrency]="showDetails"
+                  [isPercent]="!showDetails"
+                  [locale]="user?.settings?.locale"
+                  [precision]="precision"
+                  [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                  [value]="latestContributionValue"
+                />
+              </div>
+            </div>
+            <div class="market-value-metric">
+              <div class="eyebrow text-muted" i18n>Market Value</div>
+              <gf-value
+                class="market-value"
+                [isCurrency]="showDetails"
+                [locale]="user?.settings?.locale"
+                [precision]="precision"
+                [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                [value]="showDetails ? latestMarketValue : undefined"
+              />
+              <div class="market-value-divider"></div>
+              <div class="market-sub-metric">
+                <span class="market-sub-metric-label text-muted" i18n
+                  >Cash</span
+                >
+                <gf-value
+                  class="market-sub-metric-value"
+                  [isCurrency]="showDetails"
+                  [locale]="user?.settings?.locale"
+                  [precision]="precision"
+                  [unit]="showDetails ? user?.settings?.baseCurrency : ''"
+                  [value]="showDetails ? latestCashValue : undefined"
                 />
               </div>
             </div>

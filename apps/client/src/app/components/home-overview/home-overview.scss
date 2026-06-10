@@ -2,6 +2,11 @@
   display: block;
   height: 100%;
 
+  .overview {
+    padding-bottom: 1.5rem !important;
+    padding-top: 1.75rem !important;
+  }
+
   .overview-content,
   .overview-cards {
     margin-left: auto;
@@ -63,6 +68,26 @@
     margin-top: 0.35rem;
   }
 
+  .headline-contribution {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.6rem;
+  }
+
+  .headline-contribution-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .headline-contribution-value {
+    font-size: 0.98rem;
+    font-weight: 600;
+  }
+
   .eyebrow {
     font-size: 0.9rem;
     font-weight: 600;
@@ -73,6 +98,51 @@
   .headline {
     max-width: 32rem;
     padding-top: 0.15rem;
+  }
+
+  .market-value-metric {
+    align-items: flex-end;
+    background: rgba(var(--dark-primary-text), 0.03);
+    border: 1px solid rgba(var(--dark-primary-text), 0.08);
+    border-radius: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 13rem;
+    padding: 1rem 1.15rem;
+    text-align: right;
+  }
+
+  .market-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .market-value-divider {
+    align-self: stretch;
+    border-top: 1px solid rgba(var(--dark-primary-text), 0.08);
+    margin: 0.1rem 0;
+  }
+
+  .market-sub-metric {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: flex-end;
+  }
+
+  .market-sub-metric-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .market-sub-metric-value {
+    font-size: 0.98rem;
+    font-weight: 600;
   }
 
   .chart-surface {
@@ -144,6 +214,10 @@
   }
 
   @media (max-width: 991.98px) {
+    .overview {
+      padding-top: 1rem !important;
+    }
+
     .overview-panel {
       border-radius: 1rem;
       padding: 1.25rem;
@@ -155,6 +229,16 @@
 
     .legend-block {
       min-width: 100%;
+    }
+
+    .market-value-metric {
+      align-items: flex-start;
+      min-width: 100%;
+      text-align: left;
+    }
+
+    .market-sub-metric {
+      justify-content: flex-start;
     }
 
     .performance-secondary {
