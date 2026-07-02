@@ -243,7 +243,8 @@ export class GfHeaderComponent implements OnChanges {
 
   public onPortfolioSettingsChanged({
     baseCurrency,
-    filters
+    filters,
+    showBitcoin
   }: AssistantPortfolioSettingsChange) {
     const userSetting: UpdateUserSettingDto = {};
 
@@ -263,6 +264,10 @@ export class GfHeaderComponent implements OnChanges {
 
     if (baseCurrency) {
       userSetting.baseCurrency = baseCurrency;
+    }
+
+    if (typeof showBitcoin === 'boolean') {
+      userSetting.showBitcoin = showBitcoin;
     }
 
     this.dataService

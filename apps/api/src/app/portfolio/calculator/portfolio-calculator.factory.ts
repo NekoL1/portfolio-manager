@@ -34,6 +34,7 @@ export class PortfolioCalculatorFactory {
     calculationType,
     currency,
     filters = [],
+    includeBitcoin = true,
     userId
   }: {
     accountBalanceItems?: HistoricalDataItem[];
@@ -41,6 +42,7 @@ export class PortfolioCalculatorFactory {
     calculationType: PerformanceCalculationType;
     currency: string;
     filters?: Filter[];
+    includeBitcoin?: boolean;
     userId: string;
   }): PortfolioCalculator {
     switch (calculationType) {
@@ -50,6 +52,7 @@ export class PortfolioCalculatorFactory {
           activities,
           currency,
           filters,
+          includeBitcoin,
           userId,
           configurationService: this.configurationService,
           currentRateService: this.currentRateService,
@@ -64,6 +67,7 @@ export class PortfolioCalculatorFactory {
           activities,
           currency,
           filters,
+          includeBitcoin,
           userId,
           configurationService: this.configurationService,
           currentRateService: this.currentRateService,
@@ -78,6 +82,7 @@ export class PortfolioCalculatorFactory {
           activities,
           currency,
           filters,
+          includeBitcoin,
           userId,
           configurationService: this.configurationService,
           currentRateService: this.currentRateService,
@@ -92,6 +97,7 @@ export class PortfolioCalculatorFactory {
           activities,
           currency,
           filters,
+          includeBitcoin,
           userId,
           configurationService: this.configurationService,
           currentRateService: this.currentRateService,

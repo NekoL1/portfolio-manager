@@ -54,10 +54,12 @@ export class RedisCacheService {
   public getPortfolioSnapshotKey({
     calculationType,
     filters,
+    includeBitcoin = true,
     userId
   }: {
     calculationType?: PerformanceCalculationType;
     filters?: Filter[];
+    includeBitcoin?: boolean;
     userId: string;
   }) {
     let portfolioSnapshotKey = `portfolio-snapshot-${userId}`;
@@ -72,6 +74,10 @@ export class RedisCacheService {
         .digest('hex');
 
       portfolioSnapshotKey = `${portfolioSnapshotKey}-${filtersHash}`;
+    }
+
+    if (!includeBitcoin) {
+      portfolioSnapshotKey = `${portfolioSnapshotKey}-without-bitcoin`;
     }
 
     return portfolioSnapshotKey;

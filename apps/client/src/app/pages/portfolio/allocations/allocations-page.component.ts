@@ -649,8 +649,7 @@ export class GfAllocationsPageComponent implements OnInit {
     }
 
     this.countryBreakdownRows = this.buildBreakdownRows({
-      data: this.countries,
-      maxItems: 15
+      data: this.countries
     });
     this.sectorBreakdownRows = this.buildBreakdownRows({
       data: this.sectors,
@@ -663,7 +662,7 @@ export class GfAllocationsPageComponent implements OnInit {
     maxItems
   }: {
     data: { [name: string]: { name: string; value: number } };
-    maxItems: number;
+    maxItems?: number;
   }) {
     const rows = Object.values(data)
       .filter(({ value }) => {
@@ -677,13 +676,15 @@ export class GfAllocationsPageComponent implements OnInit {
       return sum + value;
     }, 0);
 
-    return rows.slice(0, maxItems).map(({ name, value }) => {
-      return {
-        name,
-        percentage: total > 0 ? value / total : 0,
-        value
-      };
-    });
+    return (maxItems ? rows.slice(0, maxItems) : rows).map(
+      ({ name, value }) => {
+        return {
+          name,
+          percentage: total > 0 ? value / total : 0,
+          value
+        };
+      }
+    );
   }
 
   private normalizeAssetName(name: string) {

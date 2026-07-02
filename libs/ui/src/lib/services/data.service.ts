@@ -1,5 +1,3 @@
-import { ImpersonationStorageService } from '@ghostfolio/client/services/impersonation-storage.service';
-import { TokenStorageService } from '@ghostfolio/client/services/token-storage.service';
 import {
   HEADER_KEY_IMPERSONATION,
   HEADER_KEY_TIMEZONE,
@@ -93,15 +91,18 @@ import { cloneDeep, groupBy, isNumber } from 'lodash';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
+import { UiImpersonationStorageService } from './impersonation-storage.service';
+import { UiTokenStorageService } from './token-storage.service';
+
 @Injectable({
   providedIn: 'root'
 })
 export class DataService {
   private readonly http = inject(HttpClient);
   private readonly impersonationStorageService = inject(
-    ImpersonationStorageService
+    UiImpersonationStorageService
   );
-  private readonly tokenStorageService = inject(TokenStorageService);
+  private readonly tokenStorageService = inject(UiTokenStorageService);
 
   public buildFiltersAsQueryParams({ filters }: { filters?: Filter[] }) {
     let params = new HttpParams();

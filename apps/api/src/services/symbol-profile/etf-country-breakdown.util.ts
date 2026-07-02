@@ -105,6 +105,7 @@ export const resolveStoredCountryBreakdown = ({
 }): ResolvedCountryBreakdown => {
   const normalizedOverrideCountries =
     normalizeCountryBreakdown(overrideCountries);
+  const catalogEntry = getEtfCountryCatalogEntry({ dataSource, isin, symbol });
 
   if (normalizedOverrideCountries.length > 0) {
     return {
@@ -114,6 +115,15 @@ export const resolveStoredCountryBreakdown = ({
         countries: normalizedOverrideCountries
       })
     };
+  }
+
+  if (catalogEntry?.preferOverStored) {
+    const catalogCountryBreakdown =
+      resolveCatalogCountryBreakdown(catalogEntry);
+
+    if (catalogCountryBreakdown.countries.length > 0) {
+      return catalogCountryBreakdown;
+    }
   }
 
   const normalizedStoredCountries = normalizeCountryBreakdown(storedCountries);
@@ -128,8 +138,6 @@ export const resolveStoredCountryBreakdown = ({
       })
     };
   }
-
-  const catalogEntry = getEtfCountryCatalogEntry({ dataSource, isin, symbol });
 
   if (catalogEntry) {
     return resolveCatalogCountryBreakdown(catalogEntry);

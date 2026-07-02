@@ -119,6 +119,10 @@ export class UpdateUserSettingDto {
   @IsOptional()
   savingsRate?: number;
 
+  @IsBoolean()
+  @IsOptional()
+  showBitcoin?: boolean;
+
   @IsIn(['DEFAULT', 'ZEN'] as ViewMode[])
   @IsOptional()
   viewMode?: ViewMode;

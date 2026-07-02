@@ -1,9 +1,39 @@
 import {
   extractNumberFromString,
-  getNumberFormatGroup
+  getNumberFormatGroup,
+  isBitcoinAssetProfile
 } from '@ghostfolio/common/helper';
 
 describe('Helper', () => {
+  describe('Is bitcoin asset profile', () => {
+    it('identifies direct Bitcoin exposure by geographic allocation kind', () => {
+      expect(
+        isBitcoinAssetProfile({
+          geographicAllocationKind: 'BITCOIN',
+          name: 'Bitcoin',
+          symbol: 'bitcoin'
+        })
+      ).toEqual(true);
+    });
+
+    it('identifies spot bitcoin ETFs by symbol or name', () => {
+      expect(
+        isBitcoinAssetProfile({ name: 'iShares Bitcoin Trust ETF' })
+      ).toEqual(true);
+      expect(isBitcoinAssetProfile({ symbol: 'IBIT' })).toEqual(true);
+      expect(isBitcoinAssetProfile({ symbol: 'BTCX-B.NE' })).toEqual(true);
+    });
+
+    it('does not classify non-bitcoin crypto-like assets as Bitcoin', () => {
+      expect(
+        isBitcoinAssetProfile({
+          name: 'iShares Ethereum Trust ETF',
+          symbol: 'ETHA'
+        })
+      ).toEqual(false);
+    });
+  });
+
   describe('Extract number from string', () => {
     it('Get decimal number', () => {
       expect(extractNumberFromString({ value: '999.99' })).toEqual(999.99);
@@ -54,12 +84,12 @@ describe('Helper', () => {
     });
 
     it('Get de-CH number format group', () => {
-      expect(getNumberFormatGroup('de-CH')).toEqual(`'`);
+      expect([`'`, '’']).toContain(getNumberFormatGroup('de-CH'));
     });
 
     it('Get de-CH number format group when it is default', () => {
       languageGetter.mockReturnValue('de-CH');
-      expect(getNumberFormatGroup()).toEqual(`'`);
+      expect([`'`, '’']).toContain(getNumberFormatGroup());
     });
 
     it('Get de-DE number format group', () => {

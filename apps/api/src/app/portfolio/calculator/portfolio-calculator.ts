@@ -74,6 +74,7 @@ export abstract class PortfolioCalculator {
   private endDate: Date;
   private exchangeRateDataService: ExchangeRateDataService;
   private filters: Filter[];
+  private includeBitcoin: boolean;
   private portfolioSnapshotService: PortfolioSnapshotService;
   private redisCacheService: RedisCacheService;
   private snapshot: PortfolioSnapshot;
@@ -90,6 +91,7 @@ export abstract class PortfolioCalculator {
     currentRateService,
     exchangeRateDataService,
     filters,
+    includeBitcoin = true,
     portfolioSnapshotService,
     redisCacheService,
     userId
@@ -101,6 +103,7 @@ export abstract class PortfolioCalculator {
     currentRateService: CurrentRateService;
     exchangeRateDataService: ExchangeRateDataService;
     filters: Filter[];
+    includeBitcoin?: boolean;
     portfolioSnapshotService: PortfolioSnapshotService;
     redisCacheService: RedisCacheService;
     userId: string;
@@ -111,6 +114,7 @@ export abstract class PortfolioCalculator {
     this.currentRateService = currentRateService;
     this.exchangeRateDataService = exchangeRateDataService;
     this.filters = filters;
+    this.includeBitcoin = includeBitcoin;
 
     let dateOfFirstActivity = new Date();
 
@@ -386,13 +390,12 @@ export abstract class PortfolioCalculator {
             .mul(item.quantity)
             .toNumber()
         : 0;
-      const marketChangePercent =
-        previousCloseInBaseCurrency && previousCloseInBaseCurrency.gt(0)
-          ? marketPriceInBaseCurrency
-              .minus(previousCloseInBaseCurrency)
-              .div(previousCloseInBaseCurrency)
-              .toNumber()
-          : 0;
+      const marketChangePercent = previousCloseInBaseCurrency?.gt(0)
+        ? marketPriceInBaseCurrency
+            .minus(previousCloseInBaseCurrency)
+            .div(previousCloseInBaseCurrency)
+            .toNumber()
+        : 0;
 
       const {
         currentValues,
@@ -1455,6 +1458,7 @@ export abstract class PortfolioCalculator {
       {
         calculationType: this.getPerformanceCalculationType(),
         filters: this.filters,
+        includeBitcoin: this.includeBitcoin,
         userId: this.userId
       }
     );
@@ -1494,6 +1498,7 @@ export abstract class PortfolioCalculator {
           data: {
             calculationType: this.getPerformanceCalculationType(),
             filters: this.filters,
+            includeBitcoin: this.includeBitcoin,
             userCurrency: this.currency,
             userId: this.userId
           },
@@ -1511,6 +1516,7 @@ export abstract class PortfolioCalculator {
         data: {
           calculationType: this.getPerformanceCalculationType(),
           filters: this.filters,
+          includeBitcoin: this.includeBitcoin,
           userCurrency: this.currency,
           userId: this.userId
         },

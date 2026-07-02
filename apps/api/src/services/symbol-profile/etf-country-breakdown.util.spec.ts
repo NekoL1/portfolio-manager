@@ -28,7 +28,7 @@ describe('ETF country breakdown resolver', () => {
         { code: 'US', weight: 0.7 },
         { code: 'JP', weight: 0.3 }
       ],
-      symbol: 'ACWV'
+      symbol: 'UNCATALOGED'
     });
 
     expect(result.countryBreakdownSource).toEqual('PROVIDER');
@@ -37,6 +37,29 @@ describe('ETF country breakdown resolver', () => {
       { code: 'US', weight: 0.7 },
       { code: 'JP', weight: 0.3 }
     ]);
+  });
+
+  it('lets high-detail catalog data supersede stale stored provider countries', () => {
+    const result = resolveStoredCountryBreakdown({
+      assetSubClass: 'ETF',
+      dataSource: DataSource.YAHOO,
+      storedCountries: [
+        { code: 'US', weight: 0.4396 },
+        { code: 'CA', weight: 0.2436 },
+        { code: 'OTHER', weight: 0.0978 }
+      ],
+      symbol: 'XEQT.TO'
+    });
+
+    expect(result.countryBreakdownSource).toEqual('CATALOG');
+    expect(result.geographicAllocationKind).toEqual('COUNTRIES');
+    expect(result.countries.some(({ code }) => code === 'KR')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'NO')).toBe(true);
+
+    const other = result.countries.find(({ code }) => code === 'OTHER');
+
+    expect(other).toBeDefined();
+    expect(other!.weight).toBeLessThan(0.001);
   });
 
   it('falls back to the curated catalog for XEQT when countries are missing', () => {
@@ -50,7 +73,9 @@ describe('ETF country breakdown resolver', () => {
     expect(result.geographicAllocationKind).toEqual('COUNTRIES');
     expect(result.countries.some(({ code }) => code === 'US')).toBe(true);
     expect(result.countries.some(({ code }) => code === 'CA')).toBe(true);
-    expect(result.countries.some(({ code }) => code === 'OTHER')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'KR')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'NO')).toBe(true);
+    expect(result.countries.length).toBeGreaterThan(40);
   });
 
   it('uses the curated catalog for IEFA with developed-market countries', () => {
@@ -64,7 +89,13 @@ describe('ETF country breakdown resolver', () => {
     expect(result.geographicAllocationKind).toEqual('COUNTRIES');
     expect(result.countries.some(({ code }) => code === 'JP')).toBe(true);
     expect(result.countries.some(({ code }) => code === 'GB')).toBe(true);
-    expect(result.countries.some(({ code }) => code === 'OTHER')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'SG')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'NO')).toBe(true);
+
+    const other = result.countries.find(({ code }) => code === 'OTHER');
+
+    expect(other).toBeDefined();
+    expect(other!.weight).toBeLessThan(0.002);
   });
 
   it('uses the curated catalog for FINN.NE when provider countries are missing', () => {
@@ -92,7 +123,53 @@ describe('ETF country breakdown resolver', () => {
     expect(result.countryBreakdownSource).toEqual('CATALOG');
     expect(result.geographicAllocationKind).toEqual('COUNTRIES');
     expect(result.countries.some(({ code }) => code === 'US')).toBe(true);
-    expect(result.countries.some(({ code }) => code === 'KY')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'CA')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'NO')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'OTHER')).toBe(false);
+  });
+
+  it('uses the curated catalog for ZXLV.TO instead of leaving it unknown', () => {
+    const result = resolveStoredCountryBreakdown({
+      assetSubClass: 'ETF',
+      dataSource: DataSource.YAHOO,
+      symbol: 'ZXLV.TO'
+    });
+
+    expect(result.countryBreakdownSource).toEqual('CATALOG');
+    expect(result.geographicAllocationKind).toEqual('COUNTRIES');
+    expect(result.countries).toEqual([
+      { code: 'US', source: 'CATALOG', weight: 1 }
+    ]);
+  });
+
+  it('mirrors ZXLV.TO to the same country exposure as XLV', () => {
+    const xlvResult = resolveStoredCountryBreakdown({
+      assetSubClass: 'ETF',
+      dataSource: DataSource.YAHOO,
+      symbol: 'XLV'
+    });
+    const zxlvResult = resolveStoredCountryBreakdown({
+      assetSubClass: 'ETF',
+      dataSource: DataSource.YAHOO,
+      symbol: 'ZXLV.TO'
+    });
+
+    expect(zxlvResult.countries).toEqual(xlvResult.countries);
+  });
+
+  it('uses the curated catalog for SKYY with issuer-domicile country mapping', () => {
+    const result = resolveStoredCountryBreakdown({
+      assetSubClass: 'ETF',
+      dataSource: DataSource.YAHOO,
+      symbol: 'SKYY'
+    });
+
+    expect(result.countryBreakdownSource).toEqual('CATALOG');
+    expect(result.geographicAllocationKind).toEqual('COUNTRIES');
+    expect(result.countries.some(({ code }) => code === 'US')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'CA')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'AU')).toBe(true);
+    expect(result.countries.some(({ code }) => code === 'DE')).toBe(true);
   });
 
   it('uses the curated catalog for IAT as a U.S.-only ETF', () => {
@@ -217,7 +294,7 @@ describe('ETF country breakdown resolver', () => {
     expect(result.countries.some(({ code }) => code === 'US')).toBe(true);
   });
 
-  it('uses the fuller ACWV catalog breakdown including UK and a much smaller residual other bucket', () => {
+  it('uses the fuller ACWV catalog breakdown including many small countries and a tiny residual other bucket', () => {
     const result = resolveStoredCountryBreakdown({
       assetSubClass: 'ETF',
       dataSource: DataSource.YAHOO,
@@ -227,14 +304,17 @@ describe('ETF country breakdown resolver', () => {
     expect(result.countryBreakdownSource).toEqual('CATALOG');
     expect(result.geographicAllocationKind).toEqual('COUNTRIES');
     const gb = result.countries.find(({ code }) => code === 'GB');
+    const qa = result.countries.find(({ code }) => code === 'QA');
     const other = result.countries.find(({ code }) => code === 'OTHER');
 
     expect(gb).toBeDefined();
-    expect(gb!.weight).toBeGreaterThan(0.0085);
-    expect(gb!.weight).toBeLessThan(0.0095);
+    expect(gb!.weight).toBeGreaterThan(0.005);
+    expect(gb!.weight).toBeLessThan(0.006);
+    expect(qa).toBeDefined();
+    expect(qa!.weight).toBeGreaterThan(0.0015);
+    expect(qa!.weight).toBeLessThan(0.0025);
     expect(other).toBeDefined();
-    expect(other!.weight).toBeGreaterThan(0.038);
-    expect(other!.weight).toBeLessThan(0.039);
+    expect(other!.weight).toBeLessThan(0.0001);
   });
 });
 

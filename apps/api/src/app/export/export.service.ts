@@ -42,6 +42,7 @@ export class ExportService {
 
     let { activities } = await this.activitiesService.getActivities({
       filters,
+      includeBitcoin: userSettings?.showBitcoin !== false,
       userId,
       includeDrafts: true,
       sortColumn: 'date',

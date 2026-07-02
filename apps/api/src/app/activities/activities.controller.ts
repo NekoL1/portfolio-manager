@@ -144,10 +144,13 @@ export class ActivitiesController {
     const types = (filterByTypes?.split(',') as ActivityType[]) ?? [];
 
     const userCurrency = this.request.user.settings.settings.baseCurrency;
+    const includeBitcoin =
+      this.request.user.settings.settings.showBitcoin !== false;
 
     const { activities, count } = await this.activitiesService.getActivities({
       endDate,
       filters,
+      includeBitcoin,
       sortColumn,
       sortDirection,
       startDate,
@@ -174,8 +177,11 @@ export class ActivitiesController {
     const impersonationUserId =
       await this.impersonationService.validateImpersonationId(impersonationId);
     const userCurrency = this.request.user.settings.settings.baseCurrency;
+    const includeBitcoin =
+      this.request.user.settings.settings.showBitcoin !== false;
 
     const { activities } = await this.activitiesService.getActivities({
+      includeBitcoin,
       userCurrency,
       includeDrafts: true,
       userId: impersonationUserId || this.request.user.id,

@@ -41,6 +41,7 @@ import {
   DATE_FORMAT,
   getAssetProfileIdentifier,
   getSum,
+  isBitcoinAssetProfile,
   parseDate
 } from '@ghostfolio/common/helper';
 import {
@@ -107,19 +108,19 @@ const emergingMarkets = require('../../assets/countries/emerging-markets.json');
 const europeMarkets = require('../../assets/countries/europe-markets.json');
 const SOLD_HOLDING_FILTER_IDS = ['CLOSED', 'SOLD'];
 
-type HoldingLot = {
+interface HoldingLot {
   costInBaseCurrencyPerShare: Big;
   costPerShare: Big;
   remainingQuantity: Big;
-};
+}
 
-type ShortHoldingLot = {
+interface ShortHoldingLot {
   proceedsInBaseCurrencyPerShare: Big;
   proceedsPerShare: Big;
   remainingQuantity: Big;
-};
+}
 
-type HoldingLotSummary = {
+interface HoldingLotSummary {
   activitiesCount: number;
   averageCostBasis: number;
   averageExitPrice: number;
@@ -136,7 +137,7 @@ type HoldingLotSummary = {
   remainingQuantity: Big;
   symbolProfile: EnhancedSymbolProfile;
   tags: Tag[];
-};
+}
 
 @Injectable()
 export class PortfolioService {
@@ -214,12 +215,18 @@ export class PortfolioService {
     ]);
 
     const userCurrency = this.request.user.settings.settings.baseCurrency;
+    const includeBitcoin = this.shouldIncludeBitcoin();
 
     return Promise.all(
       accounts.map(async (account) => {
         let activitiesCount = 0;
         let dividendInBaseCurrency = 0;
         let interestInBaseCurrency = 0;
+        const activities = includeBitcoin
+          ? account.activities
+          : account.activities.filter(({ SymbolProfile }) => {
+              return !isBitcoinAssetProfile(SymbolProfile);
+            });
 
         for (const {
           currency,
@@ -229,7 +236,7 @@ export class PortfolioService {
           SymbolProfile,
           type,
           unitPrice
-        } of account.activities) {
+        } of activities) {
           switch (type) {
             case ActivityType.DIVIDEND:
               dividendInBaseCurrency +=
@@ -407,6 +414,7 @@ export class PortfolioService {
 
       holdings = await this.getSoldHoldings({
         filters,
+        includeBitcoin: this.shouldIncludeBitcoin(user),
         userCurrency: this.getUserCurrency(user),
         userId
       });
@@ -441,15 +449,18 @@ export class PortfolioService {
 
   private async getSoldHoldings({
     filters,
+    includeBitcoin,
     userCurrency,
     userId
   }: {
     filters?: Filter[];
+    includeBitcoin: boolean;
     userCurrency: string;
     userId: string;
   }): Promise<PortfolioPosition[]> {
     const { activities } = await this.activitiesService.getActivities({
       filters,
+      includeBitcoin,
       types: [ActivityType.BUY, ActivityType.SELL],
       userCurrency,
       userId,
@@ -780,7 +791,7 @@ export class PortfolioService {
   private getSoldHoldingSummary(
     holdingSummary: HoldingLotSummary | null
   ): PortfolioPosition | null {
-    if (!holdingSummary || holdingSummary.lastSaleDate === undefined) {
+    if (!holdingSummary?.lastSaleDate) {
       return null;
     }
 
@@ -909,6 +920,7 @@ export class PortfolioService {
     const { activities } =
       await this.activitiesService.getActivitiesForPortfolioCalculator({
         filters,
+        includeBitcoin: this.shouldIncludeBitcoin(user),
         userCurrency,
         userId
       });
@@ -925,7 +937,8 @@ export class PortfolioService {
       filters,
       userId,
       calculationType: this.getUserPerformanceCalculationType(user),
-      currency: userCurrency
+      currency: userCurrency,
+      includeBitcoin: this.shouldIncludeBitcoin(user)
     });
 
     const { historicalData } = await portfolioCalculator.getSnapshot();
@@ -993,6 +1006,7 @@ export class PortfolioService {
     const { activities } =
       await this.activitiesService.getActivitiesForPortfolioCalculator({
         filters,
+        includeBitcoin: this.shouldIncludeBitcoin(user),
         userCurrency,
         userId
       });
@@ -1009,7 +1023,8 @@ export class PortfolioService {
       filters,
       userId,
       calculationType: this.getUserPerformanceCalculationType(user),
-      currency: userCurrency
+      currency: userCurrency,
+      includeBitcoin: this.shouldIncludeBitcoin(user)
     });
 
     const { createdAt, currentValueInBaseCurrency, hasErrors, positions } =
@@ -1335,6 +1350,7 @@ export class PortfolioService {
 
     const { activities } =
       await this.activitiesService.getActivitiesForPortfolioCalculator({
+        includeBitcoin: this.shouldIncludeBitcoin(user),
         userCurrency,
         userId
       });
@@ -1351,7 +1367,8 @@ export class PortfolioService {
       activities,
       userId,
       calculationType: this.getUserPerformanceCalculationType(user),
-      currency: userCurrency
+      currency: userCurrency,
+      includeBitcoin: this.shouldIncludeBitcoin(user)
     });
 
     const transactionPoints = portfolioCalculator.getTransactionPoints();
@@ -1629,15 +1646,19 @@ export class PortfolioService {
     userId = await this.getUserId(impersonationId, userId);
     const user = await this.userService.user({ id: userId });
     const userCurrency = this.getUserCurrency(user);
+    const includeBitcoin = this.shouldIncludeBitcoin(user);
 
     const [accountBalanceItems, { activities }] = await Promise.all([
-      this.accountBalanceService.getAccountBalanceItems({
-        filters,
-        userId,
-        userCurrency
-      }),
+      includeBitcoin
+        ? this.accountBalanceService.getAccountBalanceItems({
+            filters,
+            userId,
+            userCurrency
+          })
+        : [],
       this.activitiesService.getActivitiesForPortfolioCalculator({
         filters,
+        includeBitcoin,
         userCurrency,
         userId
       })
@@ -1668,7 +1689,8 @@ export class PortfolioService {
       userId,
       calculationType:
         calculationType ?? this.getUserPerformanceCalculationType(user),
-      currency: userCurrency
+      currency: userCurrency,
+      includeBitcoin
     });
 
     const { errors, hasErrors, historicalData, positions } =
@@ -1681,24 +1703,30 @@ export class PortfolioService {
       start: startDate
     });
 
-    let {
-      netPerformance,
-      netPerformanceInPercentage,
-      netPerformanceInPercentageWithCurrencyEffect,
-      netPerformanceWithCurrencyEffect,
-      netWorth,
-      totalInvestment,
-      totalInvestmentValueWithCurrencyEffect,
-      valueWithCurrencyEffect
-    } = chart?.at(-1) ?? {
+    const latestChartItem = chart?.at(-1) ?? {
       netPerformance: 0,
       netPerformanceInPercentage: 0,
       netPerformanceInPercentageWithCurrencyEffect: 0,
       netPerformanceWithCurrencyEffect: 0,
       netWorth: 0,
       totalInvestment: 0,
+      totalInvestmentValueWithCurrencyEffect: 0,
       valueWithCurrencyEffect: 0
     };
+
+    let {
+      netPerformance,
+      netPerformanceInPercentage,
+      netPerformanceInPercentageWithCurrencyEffect,
+      netPerformanceWithCurrencyEffect
+    } = latestChartItem;
+
+    const {
+      netWorth,
+      totalInvestment,
+      totalInvestmentValueWithCurrencyEffect,
+      valueWithCurrencyEffect
+    } = latestChartItem;
 
     if (dateRange === '1d' && chart.length > 0) {
       const marketChange = positions.reduce((total, { marketChange = 0 }) => {
@@ -2555,6 +2583,7 @@ export class PortfolioService {
     const user = await this.userService.user({ id: userId });
 
     const { activities } = await this.activitiesService.getActivities({
+      includeBitcoin: this.shouldIncludeBitcoin(user),
       userCurrency,
       userId,
       withExcludedAccountsAndActivities: true
@@ -2772,6 +2801,13 @@ export class PortfolioService {
       aUser?.settings?.settings.baseCurrency ??
       this.request.user?.settings?.settings.baseCurrency ??
       DEFAULT_CURRENCY
+    );
+  }
+
+  private shouldIncludeBitcoin(aUser?: UserWithSettings) {
+    return (
+      (aUser?.settings?.settings ?? this.request.user?.settings?.settings)
+        ?.showBitcoin !== false
     );
   }
 

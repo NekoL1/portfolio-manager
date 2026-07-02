@@ -132,7 +132,11 @@
             matBadge="✓"
             matBadgeSize="small"
             [mat-menu-trigger-for]="assistantMenu"
-            [matBadgeHidden]="!hasFilters || !hasPermissionToChangeFilters"
+            [matBadgeHidden]="
+              !hasFilters ||
+              (!hasPermissionToChangeFilters &&
+                !hasPermissionToUpdateUserSettings)
+            "
             [matMenuTriggerRestoreFocus]="false"
             (menuOpened)="onOpenAssistant()"
           >
@@ -156,6 +160,9 @@
               "
               [hasPermissionToChangeDateRange]="hasPermissionToChangeDateRange"
               [hasPermissionToChangeFilters]="hasPermissionToChangeFilters"
+              [hasPermissionToChangeShowBitcoin]="
+                hasPermissionToUpdateUserSettings
+              "
               [info]="info"
               [user]="user"
               (closed)="closeAssistant()"

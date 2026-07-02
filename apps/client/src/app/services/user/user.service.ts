@@ -92,7 +92,10 @@ export class UserService extends ObservableStore<UserStoreState> {
   }
 
   public hasFilters() {
-    return this.getFilters().length > 0;
+    return (
+      this.getFilters().length > 0 ||
+      this.getState().user?.settings?.showBitcoin === false
+    );
   }
 
   public reset() {

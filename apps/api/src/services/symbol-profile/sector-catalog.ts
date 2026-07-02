@@ -1,9 +1,9 @@
 import { DataSource } from '@prisma/client';
 
-type CatalogSectorEntry = {
+interface CatalogSectorEntry {
   name: string;
   weight: number;
-};
+}
 
 export interface SectorCatalogEntry {
   asOf: string;

@@ -328,12 +328,15 @@ export class PortfolioController {
     const impersonationUserId =
       await this.impersonationService.validateImpersonationId(impersonationId);
     const userCurrency = this.request.user.settings.settings.baseCurrency;
+    const includeBitcoin =
+      this.request.user.settings.settings.showBitcoin !== false;
 
     const { endDate, startDate } = getIntervalFromDateRange({ dateRange });
 
     const { activities } = await this.activitiesService.getActivities({
       endDate,
       filters,
+      includeBitcoin,
       startDate,
       userCurrency,
       userId: impersonationUserId || this.request.user.id,

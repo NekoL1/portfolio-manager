@@ -28,6 +28,7 @@ import {
 import { get, isNil, isString } from 'lodash';
 
 import {
+  BITCOIN_KEY,
   DEFAULT_CURRENCY,
   DERIVED_CURRENCIES,
   ghostfolioScraperApiSymbolPrefix,
@@ -39,6 +40,63 @@ import { BenchmarkTrend, ColorScheme } from './types';
 export const DATE_FORMAT = 'yyyy-MM-dd';
 export const DATE_FORMAT_MONTHLY = 'MMMM yyyy';
 export const DATE_FORMAT_YEARLY = 'yyyy';
+
+export const BITCOIN_SYMBOL_ALIASES = [
+  'bitcoin',
+  'BTC',
+  'BTC-USD',
+  'BTCUSD',
+  'BTCUSDT',
+  'IBIT',
+  'GBTC',
+  'BTCX-B.NE',
+  'BTCX-B.TO',
+  'BTCX.B',
+  'BTCX.B.TO',
+  'BTCC',
+  'BTCC.B',
+  'BTCC.B.TO'
+];
+
+const NORMALIZED_BITCOIN_SYMBOL_ALIASES = new Set(
+  BITCOIN_SYMBOL_ALIASES.map((symbol) => normalizeAssetSymbol(symbol))
+);
+
+export interface BitcoinAssetProfileCandidate {
+  assetProfile?: BitcoinAssetProfileCandidate;
+  geographicAllocationKind?: string;
+  name?: string;
+  symbol?: string;
+  SymbolProfile?: BitcoinAssetProfileCandidate;
+}
+
+export function isBitcoinAssetProfile(
+  assetProfileCandidate?: BitcoinAssetProfileCandidate | null
+) {
+  const assetProfile =
+    assetProfileCandidate?.assetProfile ??
+    assetProfileCandidate?.SymbolProfile ??
+    assetProfileCandidate;
+
+  if (!assetProfile) {
+    return false;
+  }
+
+  if (assetProfile.geographicAllocationKind === BITCOIN_KEY) {
+    return true;
+  }
+
+  if (
+    assetProfile.symbol &&
+    NORMALIZED_BITCOIN_SYMBOL_ALIASES.has(
+      normalizeAssetSymbol(assetProfile.symbol)
+    )
+  ) {
+    return true;
+  }
+
+  return /\bbitcoin\b/i.test(assetProfile.name ?? '');
+}
 
 export function calculateBenchmarkTrend({
   days,
@@ -166,6 +224,10 @@ export function getAssetProfileIdentifier({
   symbol
 }: AssetProfileIdentifier) {
   return `${dataSource}-${symbol}`;
+}
+
+function normalizeAssetSymbol(symbol: string) {
+  return symbol.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
 export function getBackgroundColor(aColorScheme: ColorScheme) {

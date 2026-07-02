@@ -49,17 +49,20 @@ export class PortfolioSnapshotProcessor {
       const { activities } =
         await this.activitiesService.getActivitiesForPortfolioCalculator({
           filters: job.data.filters,
+          includeBitcoin: job.data.includeBitcoin,
           userCurrency: job.data.userCurrency,
           userId: job.data.userId,
-          withCash: true
+          withCash: job.data.includeBitcoin !== false
         });
 
       const accountBalanceItems =
-        await this.accountBalanceService.getAccountBalanceItems({
-          filters: job.data.filters,
-          userCurrency: job.data.userCurrency,
-          userId: job.data.userId
-        });
+        job.data.includeBitcoin === false
+          ? []
+          : await this.accountBalanceService.getAccountBalanceItems({
+              filters: job.data.filters,
+              userCurrency: job.data.userCurrency,
+              userId: job.data.userId
+            });
 
       const portfolioCalculator = this.calculatorFactory.createCalculator({
         accountBalanceItems,
@@ -67,6 +70,7 @@ export class PortfolioSnapshotProcessor {
         calculationType: job.data.calculationType,
         currency: job.data.userCurrency,
         filters: job.data.filters,
+        includeBitcoin: job.data.includeBitcoin,
         userId: job.data.userId
       });
 
@@ -91,6 +95,7 @@ export class PortfolioSnapshotProcessor {
         this.redisCacheService.getPortfolioSnapshotKey({
           calculationType: job.data.calculationType,
           filters: job.data.filters,
+          includeBitcoin: job.data.includeBitcoin,
           userId: job.data.userId
         }),
         JSON.stringify({

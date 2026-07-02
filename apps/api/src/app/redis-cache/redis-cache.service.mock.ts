@@ -11,15 +11,17 @@ export const RedisCacheServiceMock = {
   getPortfolioSnapshotKey: ({
     calculationType,
     filters,
+    includeBitcoin = true,
     userId
   }: {
     calculationType?: PerformanceCalculationType;
     filters?: Filter[];
+    includeBitcoin?: boolean;
     userId: string;
   }): string => {
     const filtersHash = filters?.length;
 
-    return `portfolio-snapshot-${userId}${calculationType ? `-${calculationType}` : ''}${filtersHash > 0 ? `-${filtersHash}` : ''}`;
+    return `portfolio-snapshot-${userId}${calculationType ? `-${calculationType}` : ''}${filtersHash > 0 ? `-${filtersHash}` : ''}${includeBitcoin ? '' : '-without-bitcoin'}`;
   },
   set: (key: string, value: string): Promise<string> => {
     RedisCacheServiceMock.cache.set(key, value);

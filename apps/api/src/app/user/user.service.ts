@@ -282,6 +282,10 @@ export class UserService {
         ? 'max'
         : ((user.settings.settings as UserSettings)?.dateRange ?? 'max');
 
+    // Set default value for showing Bitcoin exposure
+    (user.settings.settings as UserSettings).showBitcoin =
+      (user.settings.settings as UserSettings)?.showBitcoin ?? true;
+
     // Set default value for performance calculation type
     if (!(user.settings.settings as UserSettings)?.performanceCalculationType) {
       (user.settings.settings as UserSettings).performanceCalculationType =

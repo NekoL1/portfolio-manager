@@ -448,7 +448,9 @@ export class GfBenchmarkComparatorComponent implements OnChanges, OnDestroy {
       borderWidth: 1,
       callbacks: {
         label: (context) => {
-          let label = context.dataset.label ? `${context.dataset.label}: ` : '';
+          const label = context.dataset.label
+            ? `${context.dataset.label}: `
+            : '';
           const yPoint = context.parsed.y;
 
           if (yPoint === null) {

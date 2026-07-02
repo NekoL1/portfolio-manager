@@ -98,6 +98,7 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
   @Input() hasPermissionToChangeDateRange: boolean;
   @Input() hasPermissionToChangeFilters: boolean;
   @Input() hasPermissionToChangeCurrency: boolean;
+  @Input() hasPermissionToChangeShowBitcoin: boolean;
   @Input() user: User;
 
   @ViewChild('menuTrigger') menuTriggerElement: MatMenuTrigger;
@@ -137,6 +138,17 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
     holdings: [],
     quickLinks: []
   };
+  public showBitcoinFormControl = new FormControl<boolean | null>(true);
+  public showBitcoinOptions = [
+    {
+      label: $localize`Yes`,
+      value: true
+    },
+    {
+      label: $localize`No`,
+      value: false
+    }
+  ];
   public tags: Filter[] = [];
 
   protected readonly closed = output<void>();
@@ -431,6 +443,19 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
       }
     );
 
+    this.showBitcoinFormControl.disable({ emitEvent: false });
+
+    if (this.hasPermissionToChangeShowBitcoin) {
+      this.showBitcoinFormControl.enable({ emitEvent: false });
+    }
+
+    this.showBitcoinFormControl.setValue(
+      this.user?.settings?.showBitcoin ?? true,
+      {
+        emitEvent: false
+      }
+    );
+
     if (this.hasPermissionToChangeFilters) {
       this.portfolioFilterFormControl.enable({ emitEvent: false });
     } else {
@@ -528,7 +553,8 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
 
     this.portfolioSettingsChanged.emit({
       baseCurrency: this.currencyFormControl.value,
-      filters
+      filters,
+      showBitcoin: this.showBitcoinFormControl.value
     });
 
     this.onCloseAssistant();
@@ -550,6 +576,7 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
 
     this.portfolioSettingsChanged.emit({
       baseCurrency: this.user?.settings?.baseCurrency ?? null,
+      showBitcoin: true,
       filters: this.filterTypes.map((type) => {
         return {
           type,
@@ -565,14 +592,20 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
     portfolioFilterForm: GfPortfolioFilterFormComponent
   ) {
     return (
-      portfolioFilterForm.filterForm.dirty || this.hasBaseCurrencyChanged()
+      portfolioFilterForm.filterForm.dirty ||
+      this.hasBaseCurrencyChanged() ||
+      this.hasShowBitcoinChanged()
     );
   }
 
   public hasResettableChanges(
     portfolioFilterForm: GfPortfolioFilterFormComponent
   ) {
-    return portfolioFilterForm.hasFilters() || this.hasBaseCurrencyChanged();
+    return (
+      portfolioFilterForm.hasFilters() ||
+      this.hasBaseCurrencyChanged() ||
+      this.isBitcoinHidden()
+    );
   }
 
   public setIsOpen(aIsOpen: boolean) {
@@ -804,10 +837,27 @@ export class GfAssistantComponent implements OnChanges, OnDestroy, OnInit {
     );
   }
 
+  private hasShowBitcoinChanged() {
+    return (
+      this.showBitcoinFormControl.value !==
+      (this.user?.settings?.showBitcoin ?? true)
+    );
+  }
+
+  private isBitcoinHidden() {
+    return (this.user?.settings?.showBitcoin ?? true) === false;
+  }
+
   private resetFormControls() {
     this.portfolioFilterFormControl.reset();
     this.currencyFormControl.setValue(
       this.user?.settings?.baseCurrency ?? null,
+      {
+        emitEvent: false
+      }
+    );
+    this.showBitcoinFormControl.setValue(
+      this.user?.settings?.showBitcoin ?? true,
       {
         emitEvent: false
       }

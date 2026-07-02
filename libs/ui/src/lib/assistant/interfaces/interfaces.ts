@@ -44,4 +44,5 @@ export interface SearchResults {
 export interface AssistantPortfolioSettingsChange {
   baseCurrency: string | null;
   filters: Filter[];
+  showBitcoin: boolean | null;
 }

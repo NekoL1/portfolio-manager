@@ -82,6 +82,7 @@ export class PublicController {
     ]);
 
     const { activities } = await this.activitiesService.getActivities({
+      includeBitcoin: user.settings?.settings.showBitcoin !== false,
       sortColumn: 'date',
       sortDirection: 'desc',
       take: 10,

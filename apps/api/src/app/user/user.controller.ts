@@ -171,7 +171,8 @@ export class UserController {
       );
     }
 
-    const emitPortfolioChangedEvent = 'baseCurrency' in data;
+    const emitPortfolioChangedEvent =
+      'baseCurrency' in data || 'showBitcoin' in data;
 
     const userSettings: UserSettings = merge(
       {},
@@ -180,7 +181,10 @@ export class UserController {
     );
 
     for (const key in userSettings) {
-      if (userSettings[key] === false || userSettings[key] === null) {
+      if (
+        (userSettings[key] === false && key !== 'showBitcoin') ||
+        userSettings[key] === null
+      ) {
         delete userSettings[key];
       }
     }

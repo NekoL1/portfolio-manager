@@ -16,7 +16,10 @@ import {
   ghostfolioPrefix,
   TAG_ID_EXCLUDE_FROM_ANALYSIS
 } from '@ghostfolio/common/config';
-import { getAssetProfileIdentifier } from '@ghostfolio/common/helper';
+import {
+  BITCOIN_SYMBOL_ALIASES,
+  getAssetProfileIdentifier
+} from '@ghostfolio/common/helper';
 import {
   ActivitiesResponse,
   Activity,
@@ -465,6 +468,7 @@ export class ActivitiesService {
   public async getActivities({
     endDate,
     filters,
+    includeBitcoin = true,
     includeDrafts = false,
     skip,
     sortColumn,
@@ -478,6 +482,7 @@ export class ActivitiesService {
   }: {
     endDate?: Date;
     filters?: Filter[];
+    includeBitcoin?: boolean;
     includeDrafts?: boolean;
     skip?: number;
     sortColumn?: string;
@@ -623,6 +628,27 @@ export class ActivitiesService {
           })
         }
       };
+    }
+
+    if (!includeBitcoin) {
+      const bitcoinSymbolWhereInput: Prisma.SymbolProfileWhereInput[] =
+        BITCOIN_SYMBOL_ALIASES.map((symbol) => {
+          return {
+            symbol: {
+              equals: symbol,
+              mode: 'insensitive'
+            }
+          };
+        });
+
+      this.addSymbolProfileWhereCondition(where, {
+        NOT: {
+          OR: [
+            { name: { contains: 'bitcoin', mode: 'insensitive' } },
+            ...bitcoinSymbolWhereInput
+          ]
+        }
+      });
     }
 
     if (sortColumn) {
@@ -774,12 +800,15 @@ export class ActivitiesService {
   @LogPerformance
   public async getActivitiesForPortfolioCalculator({
     filters,
+    includeBitcoin = true,
     userCurrency,
     userId,
     withCash = false
   }: {
     /** Optional filters to apply to the activities. */
     filters?: Filter[];
+    /** Whether to include Bitcoin and spot Bitcoin ETF activities. */
+    includeBitcoin?: boolean;
     /** The base currency of the user. */
     userCurrency: string;
     /** The ID of the user. */
@@ -789,6 +818,7 @@ export class ActivitiesService {
   }) {
     const activities = await this.getActivities({
       filters,
+      includeBitcoin,
       userCurrency,
       userId,
       withExcludedAccountsAndActivities: false // TODO
@@ -947,5 +977,16 @@ export class ActivitiesService {
       take,
       where
     });
+  }
+
+  private addSymbolProfileWhereCondition(
+    where: Prisma.OrderWhereInput,
+    condition: Prisma.SymbolProfileWhereInput
+  ) {
+    where.SymbolProfile = where.SymbolProfile
+      ? {
+          AND: [where.SymbolProfile, condition]
+        }
+      : condition;
   }
 }

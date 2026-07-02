@@ -4,6 +4,7 @@ import { PerformanceCalculationType } from '@ghostfolio/common/types/performance
 export interface PortfolioSnapshotQueueJob {
   calculationType: PerformanceCalculationType;
   filters: Filter[];
+  includeBitcoin?: boolean;
   userCurrency: string;
   userId: string;
 }
