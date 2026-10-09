@@ -9,6 +9,8 @@ import Keyv from 'keyv';
 import ms from 'ms';
 import { createHash, randomUUID } from 'node:crypto';
 
+const PORTFOLIO_SNAPSHOT_CACHE_VERSION = 'v2';
+
 @Injectable()
 export class RedisCacheService {
   private client: Keyv;
@@ -62,10 +64,18 @@ export class RedisCacheService {
     includeBitcoin?: boolean;
     userId: string;
   }) {
-    let portfolioSnapshotKey = `portfolio-snapshot-${userId}`;
+    let portfolioSnapshotKey = `portfolio-snapshot-${PORTFOLIO_SNAPSHOT_CACHE_VERSION}-${userId}`;
 
     if (calculationType) {
-      portfolioSnapshotKey = `${portfolioSnapshotKey}-${calculationType}`;
+      // TWR and MWR inherit ROAI's snapshot calculation. Only their range
+      // performance differs, which is calculated after reading the snapshot.
+      const snapshotCalculationType =
+        calculationType === PerformanceCalculationType.TWR ||
+        calculationType === PerformanceCalculationType.MWR
+          ? PerformanceCalculationType.ROAI
+          : calculationType;
+
+      portfolioSnapshotKey = `${portfolioSnapshotKey}-${snapshotCalculationType}`;
     }
 
     if (filters?.length > 0) {

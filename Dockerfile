@@ -14,14 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-suggests \
 # Only add basic files without the application itself to avoid rebuilding
 # layers when files (package.json etc.) have not changed
 COPY ./.config .config/
-COPY ./CHANGELOG.md CHANGELOG.md
-COPY ./LICENSE LICENSE
 COPY ./package.json package.json
 COPY ./package-lock.json package-lock.json
 COPY ./prisma/schema.prisma prisma/
 
-RUN npm install
+# Share downloaded packages with the runtime install and future builds.
+RUN --mount=type=cache,id=ghostfolio-npm,target=/root/.npm \
+  npm ci --prefer-offline --no-audit --no-fund
 
+COPY ./CHANGELOG.md CHANGELOG.md
+COPY ./LICENSE LICENSE
 COPY ./apps apps/
 COPY ./libs libs/
 COPY ./jest.config.ts jest.config.ts
@@ -39,7 +41,10 @@ WORKDIR /ghostfolio/dist/apps/api
 # package-lock.json needs to be used to ensure the same versions
 COPY ./package-lock.json /ghostfolio/dist/apps/api/
 
-RUN npm install
+# Nx generates a reduced package.json, so this step must reconcile it with
+# the original lockfile using npm install rather than npm ci.
+RUN --mount=type=cache,id=ghostfolio-npm,target=/root/.npm \
+  npm install --prefer-offline --no-audit --no-fund
 COPY .config /ghostfolio/dist/apps/api/.config/
 COPY prisma /ghostfolio/dist/apps/api/prisma/
 

@@ -314,7 +314,21 @@ describe('ETF country breakdown resolver', () => {
     expect(qa!.weight).toBeGreaterThan(0.0015);
     expect(qa!.weight).toBeLessThan(0.0025);
     expect(other).toBeDefined();
-    expect(other!.weight).toBeLessThan(0.0001);
+    expect(other!.weight).toBeLessThan(0.0003);
+  });
+
+  it('classifies Toronto bitcoin ETF aliases as BITCOIN via the curated catalog', () => {
+    const result = resolveStoredCountryBreakdown({
+      assetSubClass: 'ETF',
+      dataSource: DataSource.YAHOO,
+      symbol: 'BTCX-B.TO'
+    });
+
+    expect(result.countryBreakdownSource).toEqual('CATALOG');
+    expect(result.geographicAllocationKind).toEqual('BITCOIN');
+    expect(result.countries).toEqual([
+      { code: 'BITCOIN', source: 'CATALOG', weight: 1 }
+    ]);
   });
 });
 

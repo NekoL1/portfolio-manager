@@ -178,8 +178,6 @@ export abstract class PortfolioCalculator {
     this.startDate = startOfDay(startDate);
 
     this.computeTransactionPoints();
-
-    this.snapshotPromise = this.initialize();
   }
 
   protected abstract calculateOverallPerformance(
@@ -761,7 +759,7 @@ export abstract class PortfolioCalculator {
   }
 
   public async getDividendInBaseCurrency() {
-    await this.snapshotPromise;
+    await this.getSnapshot();
 
     return getSum(
       this.snapshot.positions.map(({ dividendInBaseCurrency }) => {
@@ -771,13 +769,13 @@ export abstract class PortfolioCalculator {
   }
 
   public async getFeesInBaseCurrency() {
-    await this.snapshotPromise;
+    await this.getSnapshot();
 
     return this.snapshot.totalFeesWithCurrencyEffect;
   }
 
   public async getInterestInBaseCurrency() {
-    await this.snapshotPromise;
+    await this.getSnapshot();
 
     return this.snapshot.totalInterestWithCurrencyEffect;
   }
@@ -823,13 +821,13 @@ export abstract class PortfolioCalculator {
   }
 
   public async getLiabilitiesInBaseCurrency() {
-    await this.snapshotPromise;
+    await this.getSnapshot();
 
     return this.snapshot.totalLiabilitiesWithCurrencyEffect;
   }
 
   public async getPerformance({ end, start }) {
-    await this.snapshotPromise;
+    await this.getSnapshot();
 
     const { historicalData } = this.snapshot;
 
@@ -913,7 +911,7 @@ export abstract class PortfolioCalculator {
     end: Date;
     start: Date;
   }) {
-    await this.snapshotPromise;
+    await this.getSnapshot();
 
     return this.snapshot.historicalData.filter(({ date }) => {
       const historicalDate = resetHours(parseDate(date));
@@ -923,7 +921,7 @@ export abstract class PortfolioCalculator {
   }
 
   protected async getHistoricalDataPointBefore({ date }: { date: Date }) {
-    await this.snapshotPromise;
+    await this.getSnapshot();
 
     return this.snapshot.historicalData
       .filter(({ date: historicalDateString }) => {
@@ -1134,7 +1132,9 @@ export abstract class PortfolioCalculator {
   }
 
   public async getSnapshot() {
-    await this.snapshotPromise;
+    // Workers call computeSnapshot directly. Only readers should enqueue or
+    // wait for a job, otherwise the worker ends up waiting for its own job.
+    await (this.snapshotPromise ??= this.initialize());
 
     return this.snapshot;
   }

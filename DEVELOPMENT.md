@@ -54,6 +54,21 @@ npm run database:push
 
 Run `npm test`
 
+## Sector Classification
+
+Sector profiles resolve in this order: valid manual overrides, the curated
+catalog in `apps/api/src/services/symbol-profile/sector-catalog.ts`, then stored
+provider data. Berkshire Hathaway (`BRK-B`) and its Canadian Depositary Receipt
+(`BRK.NE`) are classified entirely as **Financial Services**, using the company's
+sector rather than a breakdown of its businesses or investment portfolio.
+
+Portfolio allocations (both the sector chart and ranked table) and holding
+details consume these resolved profiles. The portfolio details API reads them
+on each request, so catalog changes take effect after rebuilding/restarting the
+API and reloading the page; no database migration or snapshot cache purge is
+required. Provider refreshes retain the catalog classification, while explicit
+manual sector overrides continue to take priority.
+
 ## Experimental Features
 
 New functionality can be enabled using a feature flag switch from the user settings.

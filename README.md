@@ -146,6 +146,22 @@ docker compose -f docker/docker-compose.build.yml build
 docker compose -f docker/docker-compose.build.yml up -d
 ```
 
+The first source build installs dependencies and compiles all supported languages
+and Storybook. Later builds reuse Docker layers and a persistent npm download
+cache. Keep the build cache between runs; `--no-cache` or pruning the builder
+cache discards some or all of these savings. To see the time spent in each step:
+
+```bash
+docker compose --progress=plain -f docker/docker-compose.build.yml build
+```
+
+If unchanged builds reinstall dependencies, check `docker buildx du` and Docker's
+builder cache storage limit. Automatic cache eviction can remove dependency
+layers even when the source files have not changed.
+
+For day-to-day code changes, use the watch-based workflow in
+[DEVELOPMENT.md](DEVELOPMENT.md) to avoid rebuilding a production image each time.
+
 #### Setup
 
 1. Open http://localhost:3333 in your browser

@@ -95,6 +95,15 @@ function mockGetValue(symbol: string, date: Date) {
 
       return { marketPrice: 0 };
 
+    case 'SPARSEBTC':
+      if (isSameDay(parseDate('2026-03-30'), date)) {
+        return { marketPrice: 80 };
+      } else if (isSameDay(parseDate('2026-07-28'), date)) {
+        return { marketPrice: 150 };
+      }
+
+      return { marketPrice: 0 };
+
     default:
       return { marketPrice: 0 };
   }

@@ -48,6 +48,11 @@ import {
 import { isNumber } from 'lodash';
 import { DeviceDetectorService } from 'ngx-device-detector';
 
+import {
+  getAllocationSectorDisplayName,
+  normalizeAllocationSectorName
+} from './allocations-page.helpers';
+
 @Component({
   imports: [
     GfPortfolioProportionChartComponent,
@@ -64,21 +69,6 @@ import { DeviceDetectorService } from 'ngx-device-detector';
   templateUrl: './allocations-page.html'
 })
 export class GfAllocationsPageComponent implements OnInit {
-  private static readonly CANONICAL_SECTORS = new Set([
-    'Basic Materials',
-    'Bitcoin',
-    'Communication Services',
-    'Consumer Cyclical',
-    'Consumer Staples',
-    'Energy',
-    'Financial Services',
-    'Healthcare',
-    'Industrials',
-    'Real Estate',
-    'Technology',
-    'Utilities'
-  ]);
-
   public countryBreakdownRows: {
     name: string;
     percentage: number;
@@ -513,9 +503,9 @@ export class GfAllocationsPageComponent implements OnInit {
         if (position.sectors.length > 0) {
           for (const sector of position.sectors) {
             const { weight } = sector;
-            const name = this.normalizeSectorName(sector.name);
+            const name = normalizeAllocationSectorName(sector.name);
 
-            if (this.sectors[name]?.value) {
+            if (this.sectors[name]) {
               this.sectors[name].value +=
                 weight *
                 (isNumber(position.valueInBaseCurrency)
@@ -523,7 +513,7 @@ export class GfAllocationsPageComponent implements OnInit {
                   : position.valueInPercentage);
             } else {
               this.sectors[name] = {
-                name,
+                name: getAllocationSectorDisplayName(name),
                 value:
                   weight *
                   (isNumber(position.valueInBaseCurrency)
@@ -693,14 +683,6 @@ export class GfAllocationsPageComponent implements OnInit {
     }
 
     return name.trim().toLowerCase();
-  }
-
-  private normalizeSectorName(name?: string) {
-    if (!name || !GfAllocationsPageComponent.CANONICAL_SECTORS.has(name)) {
-      return UNKNOWN_KEY;
-    }
-
-    return name;
   }
 
   private openAccountDetailDialog(aAccountId: string) {

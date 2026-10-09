@@ -244,7 +244,7 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
     const unitPriceAtStartDate = marketSymbolMap[startDateString]?.[symbol];
     let unitPriceAtEndDate = marketSymbolMap[endDateString]?.[symbol];
 
-    let latestActivity = orders.at(-1);
+    const latestActivity = orders.at(-1);
 
     if (
       dataSource === 'MANUAL' &&
@@ -352,12 +352,22 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
       }
 
       if (ordersByDate[dateString]?.length > 0) {
+        let latestOrderAtDate: PortfolioOrderItem;
+
         for (const order of ordersByDate[dateString]) {
           order.unitPriceFromMarketData =
-            marketSymbolMap[dateString]?.[symbol] ?? lastUnitPrice;
+            marketSymbolMap[dateString]?.[symbol] ??
+            lastUnitPrice ??
+            order.unitPrice;
+          latestOrderAtDate = order;
         }
+
+        lastUnitPrice =
+          latestOrderAtDate.unitPriceFromMarketData ??
+          latestOrderAtDate.unitPrice ??
+          lastUnitPrice;
       } else {
-        orders.push({
+        const order: PortfolioOrderItem = {
           date: dateString,
           fee: new Big(0),
           feeInBaseCurrency: new Big(0),
@@ -371,13 +381,13 @@ export class RoaiPortfolioCalculator extends PortfolioCalculator {
           unitPrice: marketSymbolMap[dateString]?.[symbol] ?? lastUnitPrice,
           unitPriceFromMarketData:
             marketSymbolMap[dateString]?.[symbol] ?? lastUnitPrice
-        });
+        };
+
+        orders.push(order);
+
+        lastUnitPrice =
+          order.unitPriceFromMarketData ?? order.unitPrice ?? lastUnitPrice;
       }
-
-      latestActivity = orders.at(-1);
-
-      lastUnitPrice =
-        latestActivity.unitPriceFromMarketData ?? latestActivity.unitPrice;
     }
 
     // Sort orders so that the start and end placeholder order are at the correct

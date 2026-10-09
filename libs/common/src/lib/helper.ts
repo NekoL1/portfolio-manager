@@ -540,7 +540,9 @@ export function parseDate(date: string): Date | undefined {
     'yyyy.MM.dd',
     'yyyyMMdd'
   ].find((format) => {
-    return isMatch(date, format) && format.length === date.length;
+    // ISO timestamps cannot match any date-only format. Avoid running every
+    // format parser for each cash flow, chart point and historical quote.
+    return format.length === date.length && isMatch(date, format);
   });
 
   if (dateFormat) {

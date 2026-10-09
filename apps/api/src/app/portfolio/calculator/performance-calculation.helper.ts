@@ -101,6 +101,17 @@ export function calculateMoneyWeightedReturn({
     1
   );
 
+  // The dates and period weights do not change during the root search.
+  // Parsing them inside evaluate repeats this work up to 100 times per point.
+  const weightedCashFlows = cashFlows.map(({ amount, date }) => ({
+    amount,
+    remainingPeriodFraction: getRemainingPeriodFraction({
+      date,
+      endDate,
+      totalDurationInMilliseconds
+    })
+  }));
+
   const evaluate = (rate: number) => {
     const growthFactor = 1 + rate;
 
@@ -110,15 +121,9 @@ export function calculateMoneyWeightedReturn({
 
     let futureValue = startValue * growthFactor;
 
-    for (const cashFlow of cashFlows) {
+    for (const cashFlow of weightedCashFlows) {
       futureValue +=
-        cashFlow.amount *
-        growthFactor **
-          getRemainingPeriodFraction({
-            date: cashFlow.date,
-            endDate,
-            totalDurationInMilliseconds
-          });
+        cashFlow.amount * growthFactor ** cashFlow.remainingPeriodFraction;
     }
 
     return futureValue - endValue;

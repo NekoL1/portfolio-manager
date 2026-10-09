@@ -22,13 +22,13 @@ describe('PerformanceCalculationHelper', () => {
     it('weights late contributions correctly', () => {
       expect(
         calculateMoneyWeightedReturn({
-          cashFlows: [{ amount: 100, date: '2021-01-02' }],
+          cashFlows: [{ amount: 100, date: '2021-01-02T00:00:00.000Z' }],
           endDate: new Date('2021-01-03'),
           endValue: 220,
           startDate: new Date('2021-01-01'),
           startValue: 100
         })
-      ).toBeCloseTo(0.134756, 6);
+      ).toBeCloseTo(((Math.sqrt(9.8) - 1) / 2) ** 2 - 1, 12);
     });
 
     it('falls back to modified dietz when no irr root can be bracketed', () => {
@@ -62,7 +62,8 @@ describe('PerformanceCalculationHelper', () => {
           startDate: new Date('2021-01-01T00:00:00.000Z'),
           startValue: 100
         })
-      ).toBeCloseTo(0.114286, 6);
+        // 20 / (100 + 100 * 0.25): the contribution has half a day remaining.
+      ).toBeCloseTo(0.16, 6);
     });
   });
 

@@ -1,0 +1,17 @@
+# Local dependencies, generated output, and caches are rebuilt in the image.
+**/node_modules
+/dist
+/out-tsc
+/coverage
+/.angular
+/.nx
+/tmp
+
+# Repository metadata, editor state, and local environment files.
+/.git
+/.idea
+/.vscode
+**/.DS_Store
+**/.env
+**/.env.*
+**/npm-debug.log*

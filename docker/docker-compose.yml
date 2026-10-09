@@ -42,7 +42,13 @@ services:
       - ../.env
     healthcheck:
       test:
-        ['CMD-SHELL', 'pg_isready -d "$${POSTGRES_DB}" -U $${POSTGRES_USER}']
+        [
+          'CMD-SHELL',
+          'pg_isready -h 127.0.0.1 -d "$${POSTGRES_DB}" -U $${POSTGRES_USER}'
+        ]
+      # Probe frequently during startup, then use the normal interval.
+      start_period: 30s
+      start_interval: 1s
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,6 +73,8 @@ services:
     healthcheck:
       test:
         ['CMD-SHELL', 'redis-cli --pass "$${REDIS_PASSWORD}" ping | grep PONG']
+      start_period: 30s
+      start_interval: 1s
       interval: 10s
       timeout: 5s
       retries: 5

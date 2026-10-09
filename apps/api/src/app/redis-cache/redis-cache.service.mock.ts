@@ -1,6 +1,8 @@
 import { Filter } from '@ghostfolio/common/interfaces';
 import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 
+const PORTFOLIO_SNAPSHOT_CACHE_VERSION = 'v2';
+
 export const RedisCacheServiceMock = {
   cache: new Map<string, string>(),
   get: (key: string): Promise<string> => {
@@ -21,7 +23,7 @@ export const RedisCacheServiceMock = {
   }): string => {
     const filtersHash = filters?.length;
 
-    return `portfolio-snapshot-${userId}${calculationType ? `-${calculationType}` : ''}${filtersHash > 0 ? `-${filtersHash}` : ''}${includeBitcoin ? '' : '-without-bitcoin'}`;
+    return `portfolio-snapshot-${PORTFOLIO_SNAPSHOT_CACHE_VERSION}-${userId}${calculationType ? `-${calculationType}` : ''}${filtersHash > 0 ? `-${filtersHash}` : ''}${includeBitcoin ? '' : '-without-bitcoin'}`;
   },
   set: (key: string, value: string): Promise<string> => {
     RedisCacheServiceMock.cache.set(key, value);
