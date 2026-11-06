@@ -52,17 +52,15 @@ export class PortfolioSnapshotProcessor {
           includeBitcoin: job.data.includeBitcoin,
           userCurrency: job.data.userCurrency,
           userId: job.data.userId,
-          withCash: job.data.includeBitcoin !== false
+          withCash: true
         });
 
       const accountBalanceItems =
-        job.data.includeBitcoin === false
-          ? []
-          : await this.accountBalanceService.getAccountBalanceItems({
-              filters: job.data.filters,
-              userCurrency: job.data.userCurrency,
-              userId: job.data.userId
-            });
+        await this.accountBalanceService.getAccountBalanceItems({
+          filters: job.data.filters,
+          userCurrency: job.data.userCurrency,
+          userId: job.data.userId
+        });
 
       const portfolioCalculator = this.calculatorFactory.createCalculator({
         accountBalanceItems,

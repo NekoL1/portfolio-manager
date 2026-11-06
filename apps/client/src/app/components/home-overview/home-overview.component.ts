@@ -130,7 +130,6 @@ export class GfHomeOverviewComponent implements OnInit {
     this.twrPerformance = undefined;
 
     forkJoin({
-      holdings: this.dataService.fetchPortfolioHoldings(),
       mwr: this.dataService.fetchPortfolioPerformance({
         calculationType: PerformanceCalculationType.MWR,
         range: this.user?.settings?.dateRange
@@ -141,21 +140,14 @@ export class GfHomeOverviewComponent implements OnInit {
       })
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ holdings, mwr, twr }) => {
+      .subscribe(({ mwr, twr }) => {
         this.errors = this.mergeErrors([twr.errors, mwr.errors]);
         this.mwrPerformance = mwr.performance;
         this.twrPerformance = twr.performance;
-        this.latestMarketValue = holdings.holdings.reduce(
-          (total, { valueInBaseCurrency = 0 }) => {
-            return total + valueInBaseCurrency;
-          },
-          0
-        );
-        this.latestCashValue = Math.max(
+        this.latestCashValue = twr.chart.at(-1)?.totalAccountBalance ?? 0;
+        this.latestMarketValue =
           (this.twrPerformance?.currentValueInBaseCurrency ?? 0) -
-            this.latestMarketValue,
-          0
-        );
+          this.latestCashValue;
 
         this.historicalDataItems = twr.chart.map(
           ({ date, valueWithCurrencyEffect }) => {

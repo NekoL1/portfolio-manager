@@ -1,0 +1,79 @@
+{
+  "asOf": "2026-11-05T00:34:01.615Z",
+  "fxUSDToCAD": "1.393",
+  "activityCount": 294,
+  "types": {
+    "BUY": 187,
+    "SELL": 104,
+    "DIVIDEND": 3
+  },
+  "symbols": 96,
+  "openPositions": 32,
+  "nativeTotals": {
+    "USD": {
+      "BUY": "406417.0741185568",
+      "fees": "0",
+      "SELL": "200782.6661",
+      "DIVIDEND": "0"
+    },
+    "CAD": {
+      "BUY": "404310.78280244",
+      "fees": "0",
+      "SELL": "152107.14",
+      "DIVIDEND": "4861.91"
+    }
+  },
+  "buysCAD": "970449.7670495896224",
+  "sellsCAD": "431797.3938773",
+  "dividendsCAD": "4861.91",
+  "feesCAD": "0.000",
+  "securitiesCAD": "631164.72415573865",
+  "cashCAD": "11.55000000000000000000000000000000000000",
+  "portfolioValueCAD": "631176.2741557386500000000000000000000000",
+  "inferredFundingCAD": "533802.0131722896224000000000000000000000",
+  "inferredDepositsCAD": "539706.8032395896224000000000000000000000",
+  "checkpointWithdrawalsCAD": "5904.790067299999999999999999999999999993",
+  "netGainCAD": "97374.2609834490276",
+  "snapshotArithmeticResidual": "0E-34",
+  "screenshotCurrentValue": "631164.03",
+  "screenshotNetChange": "97362.02",
+  "screenshotImpliedFunding": "533802.01",
+  "screenshotGainAtUnroundedFunding": "97362.0168277103776000000000000000000000",
+  "positionMismatches": [],
+  "negativeInventoryEvents": [
+    {
+      "id": "c118a4ef-8edf-407c-99c3-678a0cd621e0",
+      "date": "2024-10-30T04:48:01.000Z",
+      "symbol": "TD.TO",
+      "type": "SELL",
+      "quantity": "5",
+      "runningQuantity": "-5"
+    },
+    {
+      "id": "b2682c47-a1a5-408c-8d1b-953ba3121054",
+      "date": "2024-11-11T05:19:40.000Z",
+      "symbol": "TD.TO",
+      "type": "SELL",
+      "quantity": "23",
+      "runningQuantity": "-28"
+    },
+    {
+      "id": "31182cb0-43e6-4d78-b8d5-03813ef5923f",
+      "date": "2025-06-05T04:17:43.000Z",
+      "symbol": "CRCL",
+      "type": "SELL",
+      "quantity": "10",
+      "runningQuantity": "-10"
+    }
+  ],
+  "duplicateGroups": [],
+  "checkpoints": [
+    {
+      "date": "2026-10-14",
+      "currency": "USD",
+      "statedBalance": "1372",
+      "previousCashCAD": "7815.986067299999999999999999999999999993",
+      "adjustmentCAD": "-5904.790067299999999999999999999999999993"
+    }
+  ]
+}

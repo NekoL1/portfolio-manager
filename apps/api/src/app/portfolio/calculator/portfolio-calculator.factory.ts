@@ -1,13 +1,10 @@
+import { AccountBalanceItem } from '@ghostfolio/api/app/account-balance/account-balance.service';
 import { CurrentRateService } from '@ghostfolio/api/app/portfolio/current-rate.service';
 import { RedisCacheService } from '@ghostfolio/api/app/redis-cache/redis-cache.service';
 import { ConfigurationService } from '@ghostfolio/api/services/configuration/configuration.service';
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
 import { PortfolioSnapshotService } from '@ghostfolio/api/services/queues/portfolio-snapshot/portfolio-snapshot.service';
-import {
-  Activity,
-  Filter,
-  HistoricalDataItem
-} from '@ghostfolio/common/interfaces';
+import { Activity, Filter } from '@ghostfolio/common/interfaces';
 import { PerformanceCalculationType } from '@ghostfolio/common/types/performance-calculation-type.type';
 
 import { Injectable } from '@nestjs/common';
@@ -37,7 +34,7 @@ export class PortfolioCalculatorFactory {
     includeBitcoin = true,
     userId
   }: {
-    accountBalanceItems?: HistoricalDataItem[];
+    accountBalanceItems?: AccountBalanceItem[];
     activities: Activity[];
     calculationType: PerformanceCalculationType;
     currency: string;

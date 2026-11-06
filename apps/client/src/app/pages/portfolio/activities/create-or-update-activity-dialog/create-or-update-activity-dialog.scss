@@ -10,6 +10,14 @@
   .mat-mdc-dialog-content {
     max-height: unset;
 
+    .unit-price-icon {
+      color: #946b00;
+      display: inline-flex;
+      padding-left: 12px;
+      padding-right: 8px;
+      pointer-events: none;
+    }
+
     .mat-datepicker-input {
       &.mat-mdc-input-element:disabled {
         color: var(--dark-primary-text);
@@ -20,6 +28,10 @@
 
 :host-context(.theme-dark) {
   .mat-mdc-dialog-content {
+    .unit-price-icon {
+      color: #e5b84b;
+    }
+
     .mat-datepicker-input {
       &.mat-mdc-input-element:disabled {
         color: var(--light-primary-text);

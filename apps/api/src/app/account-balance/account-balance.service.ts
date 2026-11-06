@@ -3,7 +3,7 @@ import { LogPerformance } from '@ghostfolio/api/interceptors/performance-logging
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { CreateAccountBalanceDto } from '@ghostfolio/common/dtos';
-import { DATE_FORMAT, getSum, resetHours } from '@ghostfolio/common/helper';
+import { DATE_FORMAT, resetHours } from '@ghostfolio/common/helper';
 import {
   AccountBalancesResponse,
   Filter,
@@ -13,8 +13,13 @@ import {
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AccountBalance, Prisma } from '@prisma/client';
-import { Big } from 'big.js';
-import { format, parseISO } from 'date-fns';
+import { endOfDay, format, parseISO } from 'date-fns';
+
+export interface AccountBalanceItem extends HistoricalDataItem {
+  accountId?: string;
+  balance?: number;
+  currency?: string;
+}
 
 @Injectable()
 export class AccountBalanceService {
@@ -67,7 +72,7 @@ export class AccountBalanceService {
       }
     });
 
-    this.eventEmitter.emit(
+    await this.eventEmitter.emitAsync(
       PortfolioChangedEvent.getName(),
       new PortfolioChangedEvent({
         userId
@@ -84,7 +89,7 @@ export class AccountBalanceService {
       where
     });
 
-    this.eventEmitter.emit(
+    await this.eventEmitter.emitAsync(
       PortfolioChangedEvent.getName(),
       new PortfolioChangedEvent({
         userId: where.userId as string
@@ -102,32 +107,24 @@ export class AccountBalanceService {
     filters?: Filter[];
     userCurrency: string;
     userId: string;
-  }): Promise<HistoricalDataItem[]> {
+  }): Promise<AccountBalanceItem[]> {
     const { balances } = await this.getAccountBalances({
       filters,
       userCurrency,
       userId,
       withExcludedAccounts: false // TODO
     });
-    const accumulatedBalancesByDate: { [date: string]: HistoricalDataItem } =
-      {};
-    const lastBalancesByAccount: { [accountId: string]: Big } = {};
-
-    for (const { accountId, date, valueInBaseCurrency } of balances) {
-      const formattedDate = format(date, DATE_FORMAT);
-
-      lastBalancesByAccount[accountId] = new Big(valueInBaseCurrency);
-
-      const totalBalance = getSum(Object.values(lastBalancesByAccount));
-
-      // Add or update the accumulated balance for this date
-      accumulatedBalancesByDate[formattedDate] = {
-        date: formattedDate,
-        value: totalBalance.toNumber()
-      };
-    }
-
-    return Object.values(accumulatedBalancesByDate);
+    // Keep native cash and account identity: aggregating checkpoints before
+    // replay loses which account changed and prevents correct FX valuation.
+    return balances.map(
+      ({ currency, accountId, date, value, valueInBaseCurrency }) => ({
+        accountId,
+        balance: value,
+        currency: currency ?? userCurrency,
+        date: format(date, DATE_FORMAT),
+        value: valueInBaseCurrency
+      })
+    );
   }
 
   @LogPerformance
@@ -142,14 +139,17 @@ export class AccountBalanceService {
     userId: string;
     withExcludedAccounts?: boolean;
   }): Promise<AccountBalancesResponse> {
-    const where: Prisma.AccountBalanceWhereInput = { userId };
+    const where: Prisma.AccountBalanceWhereInput = {
+      userId,
+      date: { lte: endOfDay(new Date()) }
+    };
 
-    const accountFilter = filters?.find(({ type }) => {
+    const accountFilters = filters?.filter(({ type }) => {
       return type === 'ACCOUNT';
     });
 
-    if (accountFilter) {
-      where.accountId = accountFilter.id;
+    if (accountFilters?.length) {
+      where.accountId = { in: accountFilters.map(({ id }) => id) };
     }
 
     if (withExcludedAccounts === false) {
@@ -174,6 +174,7 @@ export class AccountBalanceService {
         return {
           ...balance,
           accountId: balance.account.id,
+          currency: balance.account.currency,
           valueInBaseCurrency: this.exchangeRateDataService.toCurrency(
             balance.value,
             balance.account.currency,

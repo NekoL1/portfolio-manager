@@ -8,6 +8,7 @@ export interface PortfolioDetails {
   accounts: {
     [id: string]: {
       balance: number;
+      balanceInBaseCurrency?: number;
       currency: string;
       name: string;
       valueInBaseCurrency: number;

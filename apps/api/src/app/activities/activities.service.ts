@@ -91,7 +91,7 @@ export class ActivitiesService {
       )
     );
 
-    this.eventEmitter.emit(
+    await this.eventEmitter.emitAsync(
       PortfolioChangedEvent.getName(),
       new PortfolioChangedEvent({
         userId
@@ -124,9 +124,7 @@ export class ActivitiesService {
       };
     }
 
-    const accountId = data.accountId;
     const tags = data.tags ?? [];
-    const updateAccountBalance = data.updateAccountBalance ?? false;
     const userId = data.userId;
 
     if (
@@ -216,24 +214,9 @@ export class ActivitiesService {
       include: { SymbolProfile: true }
     });
 
-    if (updateAccountBalance === true) {
-      let amount = new Big(data.unitPrice)
-        .mul(data.quantity)
-        .plus(data.fee)
-        .toNumber();
-
-      if (['BUY', 'FEE'].includes(data.type)) {
-        amount = new Big(amount).mul(-1).toNumber();
-      }
-
-      await this.accountService.updateAccountBalance({
-        accountId,
-        amount,
-        userId,
-        currency: data.SymbolProfile.connectOrCreate.create.currency,
-        date: data.date as Date
-      });
-    }
+    // Cash is replayed from activities by the portfolio ledger. Persisting a
+    // second balance checkpoint here would override later edits/deletions and
+    // double-count trades. Accept the legacy flag without writing a checkpoint.
 
     this.eventEmitter.emit(
       AssetProfileChangedEvent.getName(),
@@ -244,7 +227,7 @@ export class ActivitiesService {
       })
     );
 
-    this.eventEmitter.emit(
+    await this.eventEmitter.emitAsync(
       PortfolioChangedEvent.getName(),
       new PortfolioChangedEvent({
         userId: activity.userId
@@ -270,7 +253,7 @@ export class ActivitiesService {
       await this.symbolProfileService.deleteById(activity.symbolProfileId);
     }
 
-    this.eventEmitter.emit(
+    await this.eventEmitter.emitAsync(
       PortfolioChangedEvent.getName(),
       new PortfolioChangedEvent({
         userId: activity.userId
@@ -318,7 +301,7 @@ export class ActivitiesService {
       }
     }
 
-    this.eventEmitter.emit(
+    await this.eventEmitter.emitAsync(
       PortfolioChangedEvent.getName(),
       new PortfolioChangedEvent({ userId })
     );
@@ -949,7 +932,7 @@ export class ActivitiesService {
       }
     });
 
-    this.eventEmitter.emit(
+    await this.eventEmitter.emitAsync(
       PortfolioChangedEvent.getName(),
       new PortfolioChangedEvent({
         userId: activity.userId

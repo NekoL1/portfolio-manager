@@ -9,7 +9,7 @@ import Keyv from 'keyv';
 import ms from 'ms';
 import { createHash, randomUUID } from 'node:crypto';
 
-const PORTFOLIO_SNAPSHOT_CACHE_VERSION = 'v2';
+const PORTFOLIO_SNAPSHOT_CACHE_VERSION = 'v4';
 
 @Injectable()
 export class RedisCacheService {

@@ -13,6 +13,13 @@ export class PortfolioSnapshot {
 
   createdAt: Date;
 
+  cashBalances?: {
+    accountId?: string;
+    currency: string;
+    balance: number;
+    balanceInBaseCurrency: number;
+  }[];
+
   @Transform(transformToBig, { toClassOnly: true })
   @Type(() => Big)
   currentValueInBaseCurrency: Big;

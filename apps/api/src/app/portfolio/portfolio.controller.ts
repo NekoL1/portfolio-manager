@@ -631,7 +631,7 @@ export class PortfolioController {
           netPerformanceInPercentageWithCurrencyEffect,
           netWorth,
           totalInvestment,
-          value
+          valueWithCurrencyEffect
         }) => {
           return {
             date,
@@ -653,7 +653,7 @@ export class PortfolioController {
               performanceInformation.performance.currentValueInBaseCurrency ===
               0
                 ? 0
-                : new Big(value)
+                : new Big(valueWithCurrencyEffect)
                     .div(
                       performanceInformation.performance
                         .currentValueInBaseCurrency

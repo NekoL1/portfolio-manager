@@ -1,0 +1,123 @@
+{
+  "createdAt": "2026-11-05T00:42:41.367Z",
+  "records": [
+    {
+      "accountId": "c4fed12d-8207-4bc8-adcb-15ee73cdb8f7",
+      "accountUserId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "comment": null,
+      "createdAt": "2026-04-29T01:51:32.853Z",
+      "currency": "CAD",
+      "date": "2024-10-30T04:48:01.000Z",
+      "fee": 0,
+      "id": "c118a4ef-8edf-407c-99c3-678a0cd621e0",
+      "isDraft": false,
+      "quantity": 5,
+      "symbolProfileId": "5ef86245-6f6f-4943-96d8-fd576443c64e",
+      "type": "SELL",
+      "unitPrice": 77.25,
+      "updatedAt": "2026-04-29T01:51:32.853Z",
+      "userId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "SymbolProfile": {
+        "symbol": "TD.TO"
+      }
+    },
+    {
+      "accountId": "c4fed12d-8207-4bc8-adcb-15ee73cdb8f7",
+      "accountUserId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "comment": null,
+      "createdAt": "2026-04-29T01:54:18.579Z",
+      "currency": "CAD",
+      "date": "2024-11-11T05:19:40.000Z",
+      "fee": 0,
+      "id": "b2682c47-a1a5-408c-8d1b-953ba3121054",
+      "isDraft": false,
+      "quantity": 23,
+      "symbolProfileId": "5ef86245-6f6f-4943-96d8-fd576443c64e",
+      "type": "SELL",
+      "unitPrice": 79.63,
+      "updatedAt": "2026-04-29T01:54:18.579Z",
+      "userId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "SymbolProfile": {
+        "symbol": "TD.TO"
+      }
+    },
+    {
+      "accountId": "c4fed12d-8207-4bc8-adcb-15ee73cdb8f7",
+      "accountUserId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "comment": null,
+      "createdAt": "2026-04-29T02:32:01.745Z",
+      "currency": "USD",
+      "date": "2025-06-05T04:17:43.000Z",
+      "fee": 0,
+      "id": "31182cb0-43e6-4d78-b8d5-03813ef5923f",
+      "isDraft": false,
+      "quantity": 10,
+      "symbolProfileId": "001250f4-429a-4c43-bf94-9a989a2b56f5",
+      "type": "SELL",
+      "unitPrice": 83.44,
+      "updatedAt": "2026-04-29T02:32:01.745Z",
+      "userId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "SymbolProfile": {
+        "symbol": "CRCL"
+      }
+    },
+    {
+      "accountId": "c4fed12d-8207-4bc8-adcb-15ee73cdb8f7",
+      "accountUserId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "comment": null,
+      "createdAt": "2026-04-29T02:31:34.500Z",
+      "currency": "USD",
+      "date": "2025-06-05T04:45:26.000Z",
+      "fee": 0,
+      "id": "b2503ea1-d90e-4446-9950-0799d5edf3ba",
+      "isDraft": false,
+      "quantity": 10,
+      "symbolProfileId": "001250f4-429a-4c43-bf94-9a989a2b56f5",
+      "type": "BUY",
+      "unitPrice": 96,
+      "updatedAt": "2026-04-29T02:31:34.500Z",
+      "userId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "SymbolProfile": {
+        "symbol": "CRCL"
+      }
+    },
+    {
+      "accountId": "c4fed12d-8207-4bc8-adcb-15ee73cdb8f7",
+      "accountUserId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "comment": null,
+      "createdAt": "2026-04-29T01:45:26.628Z",
+      "currency": "CAD",
+      "date": "2025-10-11T04:21:58.000Z",
+      "fee": 0,
+      "id": "00ab6659-a776-4d04-9b2c-3198552e39da",
+      "isDraft": false,
+      "quantity": 28,
+      "symbolProfileId": "5ef86245-6f6f-4943-96d8-fd576443c64e",
+      "type": "BUY",
+      "unitPrice": 78.6,
+      "updatedAt": "2026-04-29T01:45:26.628Z",
+      "userId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "SymbolProfile": {
+        "symbol": "TD.TO"
+      }
+    }
+  ],
+  "changes": [
+    {
+      "symbol": "TD.TO",
+      "id": "00ab6659-a776-4d04-9b2c-3198552e39da",
+      "userId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "oldDate": "2025-10-11T04:21:58.000Z",
+      "newDate": "2024-10-28T04:21:58.000Z",
+      "firstSaleDate": "2024-10-30T04:48:01.000Z"
+    },
+    {
+      "symbol": "CRCL",
+      "id": "b2503ea1-d90e-4446-9950-0799d5edf3ba",
+      "userId": "38398421-7bc1-45fc-aff2-395970dd96e3",
+      "oldDate": "2025-06-05T04:45:26.000Z",
+      "newDate": "2025-06-03T04:45:26.000Z",
+      "firstSaleDate": "2025-06-05T04:17:43.000Z"
+    }
+  ]
+}

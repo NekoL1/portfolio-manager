@@ -135,3 +135,61 @@ Generate `localhost.cert` and `localhost.pem` files.
 openssl req -x509 -newkey rsa:2048 -nodes -keyout apps/client/localhost.pem -out apps/client/localhost.cert -days 365 \
   -subj "/C=CH/ST=State/L=City/O=Organization/OU=Unit/CN=localhost"
 ```
+
+## Portfolio cash and performance accounting
+
+Portfolio value is the value of securities plus cash reconstructed from the
+activity history. Purchases consume cash; sales, dividends and interest retain
+cash. Fees reduce value once. Total gain is closing value minus opening value
+minus net external funding. Realized gains therefore remain in the portfolio
+when a position is sold, including after complete liquidation.
+
+The cash ledger keeps native-currency balances per account, values foreign cash
+at the valuation-date FX rate, and values funding at the flow-date rate. It
+spends available cash in the trade's currency first. Because the existing data
+model has no explicit deposit, withdrawal or currency-exchange activities,
+remaining cash in other currencies in the same account is converted at the
+historical rate before an unfunded purchase is inferred to require a deposit.
+Cash in a different account is never silently spent.
+
+An account balance entry is an authoritative **end-of-day cash checkpoint** for
+that account, in its account currency. The difference from the reconstructed
+cash is recorded as a deposit or withdrawal; subsequent trades continue from
+that checkpoint. Do not enter total securities value as an account cash balance.
+Missing historical transfers or incorrect checkpoints can change reconstructed
+contributions, so exact broker reconciliation requires complete, accurate data.
+Historical FX gaps remain subject to the exchange-rate provider's conventions.
+
+Trade creation, editing, deletion and importing replay the same ledger. The
+legacy `updateAccountBalance` creation flag is accepted for compatibility but
+no longer writes an additional checkpoint. Portfolio cache invalidation runs
+immediately after activity changes. Snapshot cache version v4 prevents old
+cash-excluding snapshots from being reused after the upgrade.
+
+TWR uses daily closing valuations and an end-of-period flow convention; the
+first funded day uses its funding as the denominator so fees are retained.
+Daily valuations cannot resolve exact intraday return timing. MWR is cumulative
+for the selected period; its existing Modified Dietz fallback applies if no IRR
+root can be bracketed. The overview's market value and cash use the same dated
+snapshot, including when a historical range is selected.
+
+### Cash from trading and ongoing contributions
+
+Without a manually verified cash balance, cash starts at zero. Each sale adds
+its proceeds (less fees) to the account's available cash. Subsequent purchases
+spend that cash first; only the shortfall is counted as additional external
+funding. Earlier purchases never consume later sale proceeds, and a small
+unspent remainder is retained instead of being rounded or forced to zero.
+Dividends and interest add cash; they are income, not external funding.
+
+Do not save a sale's proceeds as the account's total cash balance. The activity
+ledger already retains that money. A manual balance is only for an independently
+verified end-of-day cash total; changing it can imply a deposit or withdrawal.
+The existing automatic activity-to-balance option remains disabled.
+
+Portfolio performance values include securities plus cash. Across ROAI, TWR,
+and MWR, the dollar gain including currency effects is closing value minus opening
+value minus net external funding in the selected period. ROAI preserves its
+separate currency attribution. Percentage-return methods keep their respective
+denominators. Generated cash holdings carry a matching base-currency value and
+basis so cash principal is not displayed as unrealized profit.

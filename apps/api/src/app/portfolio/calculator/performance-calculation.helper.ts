@@ -188,17 +188,28 @@ export function calculateTimeWeightedReturn({
 
   let cumulativeReturn = 1;
   let previousValue = points[0].value;
+  const cashFlows = Object.entries(cashFlowsByDate)
+    .filter(([date]) => date > points[0].date)
+    .sort(([left], [right]) => left.localeCompare(right));
+  let flowIndex = 0;
 
   for (let index = 1; index < points.length; index++) {
     const { date, value } = points[index];
-    const cashFlow = cashFlowsByDate[date] ?? 0;
-
-    if (Math.abs(previousValue) < Number.EPSILON) {
-      previousValue = value;
-      continue;
+    let cashFlow = 0;
+    while (flowIndex < cashFlows.length && cashFlows[flowIndex][0] <= date) {
+      cashFlow += cashFlows[flowIndex++][1];
     }
 
-    cumulativeReturn *= 1 + (value - previousValue - cashFlow) / previousValue;
+    // Daily closing valuations use end-of-period external flows. On the
+    // first funded day there is no opening capital: use the new funding so
+    // its fees and same-day price change are not silently discarded.
+    if (Math.abs(previousValue) < Number.EPSILON) {
+      if (cashFlow > 0) {
+        cumulativeReturn *= value / cashFlow;
+      }
+    } else {
+      cumulativeReturn *= (value - cashFlow) / previousValue;
+    }
     previousValue = value;
   }
 

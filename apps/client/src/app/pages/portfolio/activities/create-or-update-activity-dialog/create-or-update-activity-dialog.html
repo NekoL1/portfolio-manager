@@ -103,11 +103,6 @@
         </mat-select>
       </mat-form-field>
     </div>
-    <div class="mb-3" [ngClass]="{ 'd-none': mode === 'update' }">
-      <mat-checkbox color="primary" formControlName="updateAccountBalance" i18n
-        >Update Cash Balance</mat-checkbox
-      >
-    </div>
     <div
       class="mb-3"
       [ngClass]="{
@@ -211,6 +206,22 @@
               }
             }
           </mat-label>
+          <span aria-hidden="true" class="unit-price-icon" matIconPrefix>
+            <svg
+              fill="none"
+              focusable="false"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+            >
+              <circle cx="9" cy="9" r="7" />
+              <path d="M15.35 6.65a7 7 0 1 1-8.7 8.7" />
+            </svg>
+          </span>
           <input formControlName="unitPrice" matInput type="number" />
           <div
             class="ml-2"
